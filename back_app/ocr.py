@@ -1,6 +1,5 @@
 from string import punctuation
-import cv2
-import pytesseract
+import cv2, pytesseract
 video = cv2.VideoCapture(0)
 while True:
     # Load image

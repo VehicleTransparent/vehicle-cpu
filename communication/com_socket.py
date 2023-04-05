@@ -1,5 +1,3 @@
-
-#   essential packages
 import socket, time
 import pickle, cv2, struct
 

@@ -1,12 +1,4 @@
-
 import time, cv2
-
-# uncomment to test on RPi
-# from distances.dist_measure import *
-# from distances.dist_angle import *
-
-# uncomment this to test on PC
-#from Tools.Test_Measure_app_Front import *
 from communication.com_socket import *
 from threading import Thread
 from cv_algorithm.frontal_computer_vision_app import ComputerVisionFrontal
@@ -31,8 +23,6 @@ class FrontMode:
 
         self.source = source
         self.to_send_fd = DataHolder()
-        #self.servo_obj_list = [Angles(servo_pin=11), Angles(servo_pin=12), Angles(servo_pin=13)]
-        #self.us_obj_list = [Measure(trig=22, echo=23), Measure(trig=24, echo=25), Measure(trig=26, echo=27)]
 
         self.computer_vision_frontal_instance = ComputerVisionFrontal(source=self.source)
         # CV model run front in thread
@@ -60,18 +50,12 @@ class FrontMode:
                 self.cv_angle_list = [-1, -1, -1]
 
             self.ser_get_distance.send_query({"ORIENT": self.cv_angle_list})
-            # Check if the last received values is different
-            #for section in range(0, len(self.servo_obj_list)):
-                # self.servo_obj_list[section].set_angle(self.cv_angle_list[section])
-                # self.dist_list[section] = self.us_obj_list[section].distance_read()
-
 
             if self.dist_list is not None and len(self.dist_list) == 3:
                 disc = [[[self.dist_list[i], self.cv_angle_list[i]] for i in range(0, 3)], FrontMode.current_v_length]
             self.to_send_fd.set_discrete(disc)
             self.to_send_fd.set_frame(self.computer_vision_frontal_instance.frame_to_send)
 
-            #print(f'APP: to send: {self.to_send_fd.discrete_stack}')
             time.sleep(0.02)
         self.data_sock_send.s.close()
         self.data_sock_send.client_socket.close()
@@ -83,7 +67,6 @@ class FrontMode:
             data_sock.send_all(to_send)
             if to_send["F"] is not None:
                 pass
-                # cv2.imshow('SOCK_Sending This Frame...', to_send["F"])
             time.sleep(0.2)
 
     def distance_fetcher(self):

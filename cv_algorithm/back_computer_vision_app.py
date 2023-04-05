@@ -20,7 +20,7 @@ class SingleCardDetection:
         print("Loading Object Detection")
         print("Running YOLOv5n")
         # You can select the size of your model as shown in the previous image.
-        self.model = torch.hub.load('..\\GUI\\yolov5', 'yolov5n', source='local')
+        self.model = torch.hub.load('..\\gui\\yolov5', 'yolov5n', source='local')
         # To detect specific categories, 2: car,5: bus,7: truck ,for more categories 'https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml'
         self.model.classes_to_detect = [2, 5, 7]
         # Reject any predictions with less than 60% confidence
@@ -302,7 +302,7 @@ class ComputerVisionBackApp:
 
         if disc is not None:
             if disc[0][0][1] > 0:
-                s_img = cv2.imread("..\\GUI\\unsafe_left.png", -1)
+                s_img = cv2.imread("..\\gui\\unsafe_left.png", -1)
                 y_offset = self.height * 3 // 4
                 x_offset = self.width // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]
@@ -316,7 +316,7 @@ class ComputerVisionBackApp:
                 print("Don't Pass left is not Secure")
 
             elif disc[0][0][1] < 0:
-                s_img = cv2.imread("..\\GUI\\safe_left.png", -1)
+                s_img = cv2.imread("..\\gui\\safe_left.png", -1)
                 y_offset = self.height * 3 // 4
                 x_offset = self.width // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]
@@ -330,7 +330,7 @@ class ComputerVisionBackApp:
                 print("Pass left is Secure")
 
             if disc[0][2][1] > 0:
-                s_img = cv2.imread("..\\GUI\\unsafe_right.png", -1)
+                s_img = cv2.imread("..\\gui\\unsafe_right.png", -1)
                 y_offset = self.height * 3 // 4
                 x_offset = self.width * 3 // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]
@@ -344,7 +344,7 @@ class ComputerVisionBackApp:
                 print("Don't Pass right is not Secure")
 
             elif disc[0][2][1] < 0:
-                s_img = cv2.imread("..\\GUI\\safe_right.png", -1)
+                s_img = cv2.imread("..\\gui\\safe_right.png", -1)
                 y_offset = self.height * 3 // 4
                 x_offset = self.width * 3 // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]

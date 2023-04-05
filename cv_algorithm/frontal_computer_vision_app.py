@@ -1,20 +1,12 @@
-import sys
-import time
-
-import cv2
+import sys, time, cv2
 import torch
 import screeninfo
-
 from mathematics.mathlib import map_values_ranges
 from communication.com_socket import *
-
-
 """
     1. Naming.
     2. each function does only one job.
     3. function length <= 10 lines.
-    
-
 """
 
 
@@ -42,13 +34,14 @@ class MultiCarsDetection:
     TOP_LEFT_Y = 'ymin'
     BOTTOM_RIGHT_X = 'xmax'
     BOTTOM_RIGHT_Y = 'ymax'
+
     def __init__(self, width, height):
 
         self.result = None
         self.detected_vehicles_data_frame = None
         print("Loading Object Detection")
         print("Running YOLOv5n")
-        self.model = torch.hub.load(repo_or_dir='..\\GUI\\yolov5', model='yolov5n', source='local')
+        self.model = torch.hub.load(repo_or_dir='..\\gui\\yolov5', model='yolov5n', source='local')
 
         self.model.classes_to_detect = [MultiCarsDetection.CAR, MultiCarsDetection.BUS, MultiCarsDetection.TRUCK]
 
@@ -102,10 +95,11 @@ class MultiCarsDetection:
             left_section_closest_vehicle = self.detected_vehicles_data_frame.iloc[
                 section_vehicles['area'].idxmax()]
 
-            left_section_car_center = calculate_rectangle_center(left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_X],
-                                                                 left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_Y],
-                                                                 left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_X],
-                                                                 left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_Y])
+            left_section_car_center = calculate_rectangle_center(
+                left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_X],
+                left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_Y],
+                left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_X],
+                left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_Y])
 
             top_left_corner = (round(left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_X]),
                                round(left_section_closest_vehicle[MultiCarsDetection.TOP_LEFT_Y]))

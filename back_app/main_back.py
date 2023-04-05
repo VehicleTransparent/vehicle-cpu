@@ -1,17 +1,10 @@
 from threading import Thread
 import time, cv2
-
 from communication.com_socket import *
 from cv_algorithm.back_computer_vision_app import ComputerVisionBackApp
-# uncomment to test on RPi
-#from distances.dist_measure import *
-#from distances.dist_angle import *
-
-# uncomment this to test on PC
-#from Tools.Test_Measure_app_Front import *
 from communication.com_serial import SerialComm
-
 from mathematics.mathlib import *
+
 
 class BackMode:
     def __init__(self, ip="127.0.0.1", port=20070, timeout=1, source=0, name="Receive Socket"):
@@ -32,10 +25,7 @@ class BackMode:
         self.received_frame = None
         self.received_discrete = None
         self.direct_distance = None
-        self.direct_distance = None
-
-        #self.servo_obj = Angles(servo_pin=11)
-        #self.us_obj = Measure(trig=22, echo=23)
+        self.dist_list = None
 
         self.computer_vision_back_instance = ComputerVisionBackApp(source=self.source)
 
@@ -65,7 +55,7 @@ class BackMode:
                 self.computer_vision_back_instance.data_holder.set_discrete(received_discrete)
                 angles = [-1, self.computer_vision_back_instance.front_vehicle_center[0], -1]
                 self.ser_get_distance.send_query({"ORIENT": angles})
-                #direct_distance = self.us_obj.distance_read()
+
                 if self.direct_distance is not None:
                     abs_dist = math_model(data=received_discrete[0],
                                           vehicle_length=received_discrete[1],
@@ -78,8 +68,7 @@ class BackMode:
             print(f'Direct Distance: \n{self.direct_distance}')
 
             time.sleep(0.01)
-            # self.computer_vision_back_instance.data_holder.reset_discrete()
-            # self.received_fd.reset_discrete()
+
         self.data_sock_receive.s.close()
 
     def distance_fetcher(self):
