@@ -1,8 +1,11 @@
-import sys, time, cv2
-import torch
+import sys
+
 import screeninfo
-from mathematics.mathlib import map_values_ranges
+import torch
+
 from communication.com_socket import *
+from mathematics.mathlib import map_values_ranges
+
 """
     1. Naming.
     2. each function does only one job.
@@ -35,17 +38,15 @@ class MultiCarsDetection:
     BOTTOM_RIGHT_X = 'xmax'
     BOTTOM_RIGHT_Y = 'ymax'
 
-    def __init__(self, width, height):
-
+    def __init__(self, width, height, conf_threshold=0.2):
         self.result = None
         self.detected_vehicles_data_frame = None
         print("Loading Object Detection")
         print("Running YOLOv5n")
-        self.model = torch.hub.load(repo_or_dir='..\\gui\\yolov5', model='yolov5n', source='local')
-
+        self.model = torch.hub.load('ultralytics/yolov5', 'custom',
+                                    path='..\\cv_algorithm\\best.pt')  # Load custom YOLOv5 model
+        self.conf_threshold = conf_threshold  # Reject any predictions with confidence less than threshold
         self.model.classes_to_detect = [MultiCarsDetection.CAR, MultiCarsDetection.BUS, MultiCarsDetection.TRUCK]
-
-        self.threshold = MultiCarsDetection.PREDICTION_THRESHOLD
 
         self.width = width
         self.height = height
@@ -62,7 +63,7 @@ class MultiCarsDetection:
 
         # Delete detected vehicles which is under-prediction threshold
         self.detected_vehicles_data_frame = \
-            self.detected_vehicles_data_frame[self.detected_vehicles_data_frame['confidence'] > self.threshold]
+            self.detected_vehicles_data_frame[self.detected_vehicles_data_frame['confidence'] > self.conf_threshold]
 
         if not self.detected_vehicles_data_frame.empty:
             self.add_vehicles_areas_to_data_frame()
@@ -204,6 +205,7 @@ class ComputerVisionFrontal:
 
             if cv2.waitKey(1) & 0xFF == ord('q'):  # if press q
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
+                # sys.exit()
                 break
             time.sleep(0.01)
 
