@@ -1,11 +1,9 @@
 import math
 import sys
 import time
-
 import cv2
 import screeninfo
 import torch
-
 from communication.com_socket import DataHolder
 
 

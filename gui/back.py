@@ -4,7 +4,6 @@ from tkinter.ttk import *
 from PIL import Image, ImageTk
 from threading import Thread
 from back_app.main_back import BackMode
-
 sys.path.extend(['I:\Proposel\LAST_REPO\vehicle-cpu'])
 
 '''
