@@ -58,7 +58,6 @@ class Server:
     def send_all(self, dict_to_send):
 
         if not self.connected:
-
             self.connect_mechanism(f"{self.name} :[send_frame()]")
 
         if self.connected:
@@ -74,7 +73,7 @@ class Server:
             except Exception:
                 self.connected = False
                 print("> Cant Send Frame.")
-                time.sleep(0.01)
+                time.sleep(0.2)
                 #   Retry the connection by call {self.send()} to accept a new connection request from the Client.
                 #self.send_frame(frame_to_send)
 
@@ -106,7 +105,7 @@ class Client:
         if self.connected:
             try:
                 while len(self.data) < self.payload_size:
-                    packet = self.s.recv(4*size)
+                    packet = self.s.recv(size)
                     if not packet:
                         break
                     self.data += packet
@@ -114,7 +113,7 @@ class Client:
                 self.data = self.data[self.payload_size:]
                 msg_size = struct.unpack("Q", packed_msg_size)[0]
                 while len(self.data) < msg_size:
-                    self.data += self.s.recv(4*size)
+                    self.data += self.s.recv(size)
                 encoded_data = self.data[:msg_size]
                 self.data = self.data[msg_size:]
                 decoded_data = pickle.loads(encoded_data)

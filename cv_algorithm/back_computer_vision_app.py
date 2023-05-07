@@ -115,68 +115,71 @@ class ComputerVisionBackApp:
             time.sleep(1)
             sys.exit()
         print('############# Before Connection Start')
-        while sock.connect_mechanism():
-            print('############# After Connection Start')
-            # read Frame by frame
-            ok, cam_captured_frame = self.video.read()
+        while True:
+            if self.sock.connected:
+                print('############# After Connection Start')
+                # read Frame by frame
+                ok, cam_captured_frame = self.video.read()
 
-            # Exit if video not opened.
-            if not ok:
-                print('Cannot read video file')
-                sys.exit()
-            print('############# Video Is Ok')
-            timer = cv2.getTickCount()  # Start timer To Calculate FPS
-            # Resize the Frame
-            cam_captured_frame = cv2.resize(cam_captured_frame, (self.width, self.height))
+                # Exit if video not opened.
+                if not ok:
+                    print('Cannot read video file')
+                    sys.exit()
+                print('############# Video Is Ok')
+                timer = cv2.getTickCount()  # Start timer To Calculate FPS
+                # Resize the Frame
+                cam_captured_frame = cv2.resize(cam_captured_frame, (self.width, self.height))
 
-            roi_center = (self.C_X, (self.C_Y + (self.C_Y // 2)))
-            self.x1, self.y1, self.x2, self.y2, self.text, self.conf, self.area = self.od.detect(
-                frame=cam_captured_frame, roi_center=(self.C_X, self.C_Y))
+                roi_center = (self.C_X, (self.C_Y + (self.C_Y // 2)))
+                self.x1, self.y1, self.x2, self.y2, self.text, self.conf, self.area = self.od.detect(
+                    frame=cam_captured_frame, roi_center=(self.C_X, self.C_Y))
 
-            detected_car_width = round(abs(self.x2 - self.x1))
-            detected_car_height = round(abs(self.y2 - self.y1))
-            self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = self.video_filling_coordinates(
-                self.x1, self.y1, self.x2, self.y2,
-                detected_car_width,
-                detected_car_height)
-            detected_car_width = round(abs(self.x2 - self.x1))
-            detected_car_height = round(abs(self.y2 - self.y1))
-            print('############# After Detection ')
-            print('############# Area : ', self.area)
-            if self.area != 0:
-                try:
-                    self.last_streamed_frame = self.data_holder.get_frame()
-                    self.last_disc = self.data_holder.get_discrete()
-                    self.last_streamed_frame = cv2.resize(self.last_streamed_frame,
-                                                          (detected_car_width, detected_car_height))
-                    cam_captured_frame[self.y1: self.y2, self.x1: self.x2] = cv2.addWeighted(
-                        cam_captured_frame[self.y1: self.y2, self.x1: self.x2], 0.2, self.last_streamed_frame, 0.8, 0)
-                    cam_captured_frame = self.update_warning(cam_captured_frame, self.last_disc)
+                detected_car_width = round(abs(self.x2 - self.x1))
+                detected_car_height = round(abs(self.y2 - self.y1))
+                self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = self.video_filling_coordinates(
+                    self.x1, self.y1, self.x2, self.y2,
+                    detected_car_width,
+                    detected_car_height)
+                detected_car_width = round(abs(self.x2 - self.x1))
+                detected_car_height = round(abs(self.y2 - self.y1))
+                print('############# After Detection ')
+                print('############# Area : ', self.area)
+                if self.area != 0:
+                    try:
+                        self.last_streamed_frame = self.data_holder.get_frame()
+                        self.last_disc = self.data_holder.get_discrete()
+                        self.last_streamed_frame = cv2.resize(self.last_streamed_frame,
+                                                              (detected_car_width, detected_car_height))
+                        cam_captured_frame[self.y1: self.y2, self.x1: self.x2] = cv2.addWeighted(
+                            cam_captured_frame[self.y1: self.y2, self.x1: self.x2], 0.2, self.last_streamed_frame, 0.8, 0)
+                        cam_captured_frame = self.update_warning(cam_captured_frame, self.last_disc)
 
-                except:
-                    pass
-            cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
-            self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
-            # Showing The Video Frame
-            window_name = 'Back View'
-            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-            cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
-                                  cv2.WINDOW_FULLSCREEN)
-            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
-            # Display FPS on frame
-            cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
-                        (50, 255, 255), 2);
+                    except:
+                        pass
+                cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
+                self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
+                # Showing The Video Frame
+                window_name = 'Back View'
+                cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+                cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
+                                      cv2.WINDOW_FULLSCREEN)
+                fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
+                # Display FPS on frame
+                cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
+                            (50, 255, 255), 2);
 
-            cv2.imshow(window_name, cam_captured_frame)
+                cv2.imshow(window_name, cam_captured_frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                # sys.exit()
-                break
-            time.sleep(0.01)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    # sys.exit()
+                    break
+                time.sleep(0.01)
 
-        self.video.release()
-        cv2.destroyAllWindows()
+            else:
+                self.video.release()
+                cv2.destroyAllWindows()
+                self.sock.connect_mechanism()
 
     def update_warning(self, frame, disc):
         """

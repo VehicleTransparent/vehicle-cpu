@@ -36,38 +36,46 @@ class FrontMode:
         self.threads_activated = False
 
     def __call__(self, call_back):
-        while self.data_sock_send.connect_mechanism():
-            if not self.threads_activated:
-                self.threads_activated = True
-                self.t_update_f.start()
-                self.t_cv_front.start()
-                self.t_get_dist_asynch.start()
-                time.sleep(3)
-                call_back()
+        if not self.threads_activated:
+            self.threads_activated = True
+            self.t_update_f.start()
+            self.t_cv_front.start()
+            self.t_get_dist_asynch.start()
+            time.sleep(3)
+            call_back()
 
-            self.cv_angle_list = self.computer_vision_frontal_instance.angle_to_send
-            if self.computer_vision_frontal_instance.angle_to_send is None:
-                self.cv_angle_list = [-1, -1, -1]
+        while True:
 
-            self.ser_get_distance.send_query({"ORIENT": self.cv_angle_list})
+            if self.data_sock_send.connected:
+                self.cv_angle_list = self.computer_vision_frontal_instance.angle_to_send
+                if self.computer_vision_frontal_instance.angle_to_send is None:
+                    self.cv_angle_list = [-1, -1, -1]
 
-            if self.dist_list is not None and len(self.dist_list) == 3:
-                disc = [[[self.dist_list[i], self.cv_angle_list[i]] for i in range(0, 3)], FrontMode.current_v_length]
-            self.to_send_fd.set_discrete(disc)
-            self.to_send_fd.set_frame(self.computer_vision_frontal_instance.frame_to_send)
+                self.ser_get_distance.send_query({"ORIENT": self.cv_angle_list})
 
-            time.sleep(0.02)
-        self.data_sock_send.s.close()
-        self.data_sock_send.client_socket.close()
+                if self.dist_list is not None and len(self.dist_list) == 3:
+                    disc = [[[self.dist_list[i], self.cv_angle_list[i]] for i in range(0, 3)], FrontMode.current_v_length]
+                self.to_send_fd.set_discrete(disc)
+                self.to_send_fd.set_frame(self.computer_vision_frontal_instance.frame_to_send)
+
+                time.sleep(0.02)
+            else :
+                self.data_sock_send.s.close()
+                return
+
+
 
     def update_all(self, send_fd, data_sock):
-        while self.data_sock_send.connect_mechanism():
-            to_send = {"F": send_fd.get_frame(),
-                       "D": send_fd.get_discrete()}
-            data_sock.send_all(to_send)
-            if to_send["F"] is not None:
-                pass
-            time.sleep(0.2)
+        while True:
+            if self.data_sock_send.connected:
+                to_send = {"F": send_fd.get_frame(),
+                           "D": send_fd.get_discrete()}
+                data_sock.send_all(to_send)
+                if to_send["F"] is not None:
+                    cv2.imshow("sending", to_send["F"])
+                    pass
+            else:
+                self.data_sock_send.connect_mechanism()
 
     def distance_fetcher(self):
         while True:

@@ -26,6 +26,7 @@ class BackMode:
         self.received_discrete = None
         self.direct_distance = None
         self.dist_list = None
+        self.default_frame = cv2.imread("..\\gui\\Valeo.png")
 
         self.computer_vision_back_instance = ComputerVisionBackApp(source=self.source)
 
@@ -37,43 +38,55 @@ class BackMode:
         self.threads_activated = False
 
     def __call__(self, call_back):
+        if not self.threads_activated:
+            self.threads_activated = True
+            self.t_cv_back.start()
+            self.t_get_dist_asynch.start()
+            time.sleep(3)
+            call_back()
 
-        while self.data_sock_receive.connect_mechanism():
-            if not self.threads_activated:
-                self.threads_activated = True
-                self.t_cv_back.start()
-                self.t_get_dist_asynch.start()
-                time.sleep(3)
-                call_back()
-            received_frame, received_discrete = self.data_sock_receive.receive_all(1024)
-            # cv2.imshow("Informed Frame", frame)
-            if received_frame is not None:
-                self.computer_vision_back_instance.data_holder.set_frame(received_frame)
+        while True:
 
-            if received_discrete is not None and type(self.computer_vision_back_instance.front_vehicle_center) is list:
-                # Update frames which is received from socket.
-                self.computer_vision_back_instance.data_holder.set_discrete(received_discrete)
-                angles = [-1, self.computer_vision_back_instance.front_vehicle_center[0], -1]
-                self.ser_get_distance.send_query({"ORIENT": angles})
+            if self.data_sock_receive.connected:
+                received_frame, received_discrete = self.data_sock_receive.receive_all(1024)
+                cv2.imshow("received", received_frame)
+                # cv2.imshow("Informed Frame", frame)
+                if received_frame is not None:
+                    self.computer_vision_back_instance.data_holder.set_frame(received_frame)
+                else:
+                    self.computer_vision_back_instance.data_holder.set_frame(self.default_frame)
 
-                if self.direct_distance is not None:
-                    abs_dist = math_model(data=received_discrete[0],
-                                          vehicle_length=received_discrete[1],
-                                          direct_distance=self.direct_distance,
-                                          theta=self.computer_vision_back_instance.front_vehicle_center[0])
+                if received_discrete is not None and type(self.computer_vision_back_instance.front_vehicle_center) is list:
+                    # Update frames which is received from socket.
+                    self.computer_vision_back_instance.data_holder.set_discrete(received_discrete)
+                    angles = [-1, self.computer_vision_back_instance.front_vehicle_center[0], -1]
+                    self.ser_get_distance.send_query({"ORIENT": angles})
 
-                    print(f"Front Vehicle Center: {self.computer_vision_back_instance.front_vehicle_center[0]}")
-                    print(f"Absolute Distances: {abs_dist}")
+                    if self.direct_distance is not None:
+                        abs_dist = math_model(data=received_discrete[0],
+                                              vehicle_length=received_discrete[1],
+                                              direct_distance=self.direct_distance,
+                                              theta=self.computer_vision_back_instance.front_vehicle_center[0])
 
-            print(f'Direct Distance: \n{self.direct_distance}')
+                        print(f"Front Vehicle Center: {self.computer_vision_back_instance.front_vehicle_center[0]}")
+                        print(f"Absolute Distances: {abs_dist}")
 
-            time.sleep(0.01)
+                        print(f'Direct Distance: \n{self.direct_distance}')
 
-        self.data_sock_receive.s.close()
+                time.sleep(0.01)
+            else:
+                self.data_sock_receive.s.close()
+                return
+
+
 
     def distance_fetcher(self):
         while True:
-            received = self.ser_get_distance.receive_query()
-            if received:
-                self.dist_list = received["DISTANCE"]
-            time.sleep(0.3)
+            if self.data_sock_receive.connected:
+                received = self.ser_get_distance.receive_query()
+                if received:
+                    self.dist_list = received["DISTANCE"]
+                time.sleep(0.3)
+            else:
+                pass
+

@@ -151,62 +151,64 @@ class ComputerVisionFrontal:
             time.sleep(1)
             # sys.exit()
 
-        while sock.connect_mechanism():
-            # Read Frame by frame
-            ok, frame = self.video.read()
+        while True:
+            if sock.connected:
+                # Read Frame by frame
+                ok, frame = self.video.read()
 
-            while frame is None:
-                cv2.VideoCapture(self.source)
+                while frame is None:
+                    cv2.VideoCapture(self.source)
 
-            frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
+                frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
 
-            # Exit if video not opened.
-            if not ok:
-                print('Cannot read video file')
-                self.angle_to_send = [-1, -1, -1]
-                sys.exit()
-            if frames_counter >= frames_per_detect or first_frame:
-                self.cars_sections = self.od.detect(frame=frame)
-                frames_counter = 0
-                first_frame = False
+                # Exit if video not opened.
+                if not ok:
+                    print('Cannot read video file')
+                    self.angle_to_send = [-1, -1, -1]
+                    sys.exit()
+                if frames_counter >= frames_per_detect or first_frame:
+                    self.cars_sections = self.od.detect(frame=frame)
+                    frames_counter = 0
+                    first_frame = False
 
-            frames_counter += 1
+                frames_counter += 1
 
-            # [ (451, 651) , (0,0) , (451, 651) ]
-            position_angels = [
-                map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
-                                  output_range_min=0,
-                                  output_range_max=180) for c in self.cars_sections]
-            print('position_angels : ', position_angels)
-            print('cars_sections : ', self.cars_sections)
+                # [ (451, 651) , (0,0) , (451, 651) ]
+                position_angels = [
+                    map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
+                                      output_range_min=0,
+                                      output_range_max=180) for c in self.cars_sections]
+                print('position_angels : ', position_angels)
+                print('cars_sections : ', self.cars_sections)
 
-            # CVFrontGlobalVariables.frame = frame
-            self.frame_to_send = frame
+                # CVFrontGlobalVariables.frame = frame
+                self.frame_to_send = frame
 
-            self.angle_to_send = position_angels
+                self.angle_to_send = position_angels
 
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-            print('Detected Left Car center  : ')
-            print(self.cars_sections[0])
-            print('Detected Middle Car center : ')
-            print(self.cars_sections[1])
-            print('Detected Right Car center : ')
-            print(self.cars_sections[2])
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                print('Detected Left Car center  : ')
+                print(self.cars_sections[0])
+                print('Detected Middle Car center : ')
+                print(self.cars_sections[1])
+                print('Detected Right Car center : ')
+                print(self.cars_sections[2])
+                print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 
-            # Showing The Video Frame
-            window_name = 'Current Front'
-            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-            cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
-                                  cv2.WINDOW_FULLSCREEN)
-            cv2.imshow(window_name, frame)
+                # Showing The Video Frame
+                window_name = 'Current Front'
+                cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+                cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
+                                      cv2.WINDOW_FULLSCREEN)
+                cv2.imshow(window_name, frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):  # if press q
-                self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
-                # sys.exit()
-                break
-            time.sleep(0.01)
-
-        self.video.release()
-        cv2.destroyAllWindows()
+                if cv2.waitKey(1) & 0xFF == ord('q'):  # if press q
+                    self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
+                    # sys.exit()
+                    break
+                time.sleep(0.01)
+            else:
+                self.video.release()
+                cv2.destroyAllWindows()
+                sock.connect_mechanism()
