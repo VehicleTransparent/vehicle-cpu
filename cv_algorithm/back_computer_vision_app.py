@@ -1,9 +1,11 @@
 import math
 import sys
 import time
+
 import cv2
 import screeninfo
 import torch
+import numpy as np
 from communication.com_socket import DataHolder
 
 
@@ -69,17 +71,29 @@ class SingleCardDetection:
         return self.x1, self.y1, self.x2, self.y2, self.text, self.conf, self.area  #
 
 
-
+'''
+# Note for applying the depth over the filling video:
+* In the run function we have [streamedData,and detected_car_width, detected_car_height ] before add_weight function
+* We will apply masking over that image 'streamedData' according to these resolutions detected_car_width, detected_car_height.
+* We have the frontal car length [for testing purposes we assume it will be fixed with 3m].
+* By using the frontal car length as a zoom-out factor, we should map this length with a ratio ranging between zero and one.
+* The normal length range of normal vehicles is between 3m to 13m, so the ratio will be between 0.0 and 1.0 with step 0.1, in reverse order.
+* 0.1 per 1 m, since we fixed the length by 3 m, the ratio will be 0.1
+* As 0.1 is the reduced ratio, the zoom_out factor will be 1 - 0.1  = 0.9
+'''
 
 
 class ComputerVisionBackApp:
     width_ratio = 0.15
     height_ratio = 0.3
+
     def __init__(self, source=0):
         self.screen = screeninfo.get_monitors()[0]
         self.width, self.height = self.screen.width, self.screen.height
         self.C_X, self.C_Y, = int(self.width / 2), int(self.height / 2)
         self.area_threshold = (self.width * self.height) / 55
+        self.zoom_factor = 0.9  # Zoom factor (0.6 zooms out by 60%)  For applying depth over the filling video
+
         # ReSize the Frame
         self.source = source
         # Initialize The x1,y1,x2,y2,text,conf,bbox
@@ -149,8 +163,27 @@ class ComputerVisionBackApp:
                     self.last_disc = self.data_holder.get_discrete()
                     self.last_streamed_frame = cv2.resize(self.last_streamed_frame,
                                                           (detected_car_width, detected_car_height))
+                    # ------------------------------------------------
+                    # here we has [streamedData,and detected_car_width, detected_car_height ]
+                    # Calculate the new dimensions
+                    new_width = int(self.last_streamed_frame.shape[1] / self.zoom_factor)
+                    new_height = int(self.last_streamed_frame.shape[0] / self.zoom_factor)
+
+                    # Create a larger canvas
+                    zoomed_out_image = np.zeros((new_height, new_width, 3), dtype=np.uint8)
+
+                    # Calculate the position to place the original image on the canvas
+                    x = (new_width - self.last_streamed_frame.shape[1]) // 2
+                    y = (new_height - self.last_streamed_frame.shape[0]) // 2
+
+                    # Place the original image on the canvas
+                    zoomed_out_image[y:y + self.last_streamed_frame.shape[0],
+                    x:x + self.last_streamed_frame.shape[1]] = self.last_streamed_frame
+                    zoomed_out_image = cv2.resize(zoomed_out_image, (detected_car_width, detected_car_height))
+                    # ------------------------------------------------
+
                     cam_captured_frame[self.y1: self.y2, self.x1: self.x2] = cv2.addWeighted(
-                        cam_captured_frame[self.y1: self.y2, self.x1: self.x2], 0.2, self.last_streamed_frame, 0.8, 0)
+                        cam_captured_frame[self.y1: self.y2, self.x1: self.x2], 0.2, zoomed_out_image, 0.8, 0)
                     cam_captured_frame = self.update_warning(cam_captured_frame, self.last_disc)
 
                 except:
