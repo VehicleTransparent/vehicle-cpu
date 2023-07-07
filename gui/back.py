@@ -1,10 +1,12 @@
 import sys, cv2, time, threading
 from tkinter import *
+import tkinter as tk
+
 from tkinter.ttk import *
 from PIL import Image, ImageTk
 from threading import Thread
 from back_app.main_back import BackMode
-sys.path.extend(['I:\Proposel\LAST_REPO\vehicle-cpu'])
+sys.path.extend(['D:\\dev\\PycharmProjects\\vehicle-cpu'])
 
 '''
   gui file to fire back car system 
@@ -34,15 +36,17 @@ class Gui:
 
         self.connection_status = Label(font=('vendor', 28, 'bold'), text='Request A Connection', background="#AFD1EE")
         self.connection_status.place(relx=.5, rely=.25, anchor="center")
-        self.bm = BackMode(ip="192.168.1.4", timeout=4, source="..\\gui\\video11.mp4")
+
         self.main_window.mainloop()
 
     # call back function to do action for binding on mouse click
     def call_back_click_event(self, event):
-        if self.bm.data_sock_receive.connect_mechanism():
-            self.bm(self.main_window.destroy)
-            time.sleep(0.5)
-            self.__init__()
+        self.bm = BackMode(ip="127.0.0.1", timeout=4, source="..\\gui\\small_rear_cut.mp4")
+
+        self.bm(self.main_window.destroy)
+
+        while not self.bm.data_sock_receive.connect_mechanism():
+            self.bm.data_sock_receive.connect_mechanism()  # Try to connect
 
 
 gui = Gui()

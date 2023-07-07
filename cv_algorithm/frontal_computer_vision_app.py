@@ -151,7 +151,7 @@ class ComputerVisionFrontal:
             time.sleep(1)
             # sys.exit()
 
-        while sock.connect_mechanism():
+        while True:
             # Read Frame by frame
             ok, frame = self.video.read()
 
@@ -172,27 +172,22 @@ class ComputerVisionFrontal:
 
             frames_counter += 1
 
-            # [ (451, 651) , (0,0) , (451, 651) ]
+
             position_angels = [
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
                                   output_range_min=0,
                                   output_range_max=180) for c in self.cars_sections]
-            print('position_angels : ', position_angels)
-            print('cars_sections : ', self.cars_sections)
 
-            # CVFrontGlobalVariables.frame = frame
-            self.frame_to_send = frame
+
+
+            to_send = {"F": frame,
+                       "D": 1}
+            while not sock.connected:
+                sock.connect_mechanism()
+            sock.send_all(to_send)
 
             self.angle_to_send = position_angels
 
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-            print('Detected Left Car center  : ')
-            print(self.cars_sections[0])
-            print('Detected Middle Car center : ')
-            print(self.cars_sections[1])
-            print('Detected Right Car center : ')
-            print(self.cars_sections[2])
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 
             # Showing The Video Frame
             window_name = 'Current Front'
@@ -206,7 +201,7 @@ class ComputerVisionFrontal:
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
                 # sys.exit()
                 break
-            time.sleep(0.01)
+
 
         self.video.release()
         cv2.destroyAllWindows()

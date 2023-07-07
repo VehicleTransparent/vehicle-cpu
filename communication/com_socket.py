@@ -24,12 +24,11 @@ class Server:
         """
         self.ip, self.port, self.timeout, self.name = ip, port, timeout, name
         self.created, self.connected = False, False
-        self.client_socket = socket.socket()
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.recreate()
 
     def recreate(self):
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.s.bind((self.ip, self.port))
         self.s.listen(5)
         self.connected = False
@@ -42,8 +41,8 @@ class Server:
             print(f"Socket: {s_sock_name}")
             try:
 
-                self.s.settimeout(self.timeout)
-                self.client_socket, self.addr = self.s.accept()
+                # self.s.settimeout(self.timeout)
+                self.s, self.addr = self.s.accept()
                 self.connected = True
                 print(f'Server {s_sock_name} Socket Successful Connection from: {self.addr}')
 
@@ -63,18 +62,17 @@ class Server:
 
         if self.connected:
             try:
-                if self.client_socket:
+                if self.s:
                     a = pickle.dumps(dict_to_send)
                     message = struct.pack("Q", len(a)) + a
-                    self.client_socket.sendall(message)
-                    # cv2.imshow('SOCK_Sending This Frame...', dict_to_send["F"])
+                    self.s.sendall(message)
+                    cv2.imshow('SOCK_Sending This Frame...', dict_to_send["F"])
                     key = cv2.waitKey(10)
                     if key == 13:
-                        self.client_socket.close()
+                        self.s.close()
             except Exception:
                 self.connected = False
                 print("> Cant Send Frame.")
-                time.sleep(0.01)
                 #   Retry the connection by call {self.send()} to accept a new connection request from the Client.
                 #self.send_frame(frame_to_send)
 
@@ -83,7 +81,7 @@ class Client:
     def __init__(self, ip, port, name='sock_name', timeout=3):
         self.ip, self.port, self.timeout, self.name = ip, port, timeout, name
         self.created, self.connected = False, False
-        self.s = socket.socket()
+        self.s = None
         self.recreate()
 
     def recreate(self):
@@ -106,7 +104,7 @@ class Client:
         if self.connected:
             try:
                 while len(self.data) < self.payload_size:
-                    packet = self.s.recv(4*size)
+                    packet = self.s.recv(size)
                     if not packet:
                         break
                     self.data += packet
@@ -114,7 +112,10 @@ class Client:
                 self.data = self.data[self.payload_size:]
                 msg_size = struct.unpack("Q", packed_msg_size)[0]
                 while len(self.data) < msg_size:
-                    self.data += self.s.recv(4*size)
+                    received_data = self.s.recv(msg_size-len(self.data))
+                    if not received_data:
+                        break
+                    self.data += received_data
                 encoded_data = self.data[:msg_size]
                 self.data = self.data[msg_size:]
                 decoded_data = pickle.loads(encoded_data)
@@ -137,7 +138,7 @@ class Client:
         if not self.connected:
             print(f"Socket: {self.name}")
             try:
-                self.s.settimeout(self.timeout)
+                # self.s.settimeout(self.timeout)
                 self.s.connect((self.ip, self.port))
                 self.connected = True
                 print(f' Client {r_sock_tye} Socket Successful Connection ')

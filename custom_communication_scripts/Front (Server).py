@@ -8,10 +8,11 @@ that explain how to use socket as Server and how to send a video to the client
 
 import socket
 import struct
+import sys
 
 import cv2
 
-TCP_IP = '192.168.1.6'  # IP address of the server
+TCP_IP = '127.0.0.1'  # IP address of the server
 TCP_PORT = 20080  # Port number
 
 # Set up TCP socket
@@ -20,7 +21,7 @@ sock.connect((TCP_IP, TCP_PORT))
 
 # Set up video capture
 # cap = cv2.VideoCapture(0)  # 0 represents the default camera
-video = cv2.VideoCapture("back-view.mp4")  # Read video
+video = cv2.VideoCapture("..\\gui\\front_cut.mp4")  # Read video
 width, height = 500, 350  # Resize the Frame
 # Exit if video not opened.
 if not video.isOpened():

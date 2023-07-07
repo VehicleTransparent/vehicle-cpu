@@ -11,7 +11,7 @@ import struct
 
 import numpy as np
 
-TCP_IP = '192.168.1.6'  # IP address of the server
+TCP_IP = '127.0.0.1'  # IP address of the server
 TCP_PORT = 20080  # Port number
 sock, conn, addr = None, None, None
 
@@ -148,7 +148,7 @@ def run():
     # Detection And Tracking Instances
     od = SingleCarDetection(area_threshold=area_threshold)
     init_soc()
-    video = cv2.VideoCapture("back-view.mp4")  # Read video
+    video = cv2.VideoCapture("..\\gui\\rear_cut.mp4")  # Read video
     logo = cv2.imread('Valeo.png')
     # Exit if video not opened.
     if not video.isOpened():

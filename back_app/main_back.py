@@ -7,7 +7,7 @@ from mathematics.mathlib import *
 
 
 class BackMode:
-    def __init__(self, ip="127.0.0.1", port=20070, timeout=1, source=0, name="Receive Socket"):
+    def __init__(self, ip="127.0.0.1", port=20080, timeout=1, source=0, name="Receive Socket"):
         '''
         - Create CV object.
         - Create one measurement unit.
@@ -29,45 +29,29 @@ class BackMode:
 
         self.computer_vision_back_instance = ComputerVisionBackApp(source=self.source)
 
-        # CV model run front in thread
-        self.t_cv_back = Thread(target=self.computer_vision_back_instance.run_back,
-                                args=[self.data_sock_receive], daemon=True)
-        self.t_get_dist_asynch = Thread(target=self.distance_fetcher, args=[], daemon=True)
 
-        self.threads_activated = False
 
     def __call__(self, call_back):
+        call_back()
 
-        while self.data_sock_receive.connect_mechanism():
-            if not self.threads_activated:
-                self.threads_activated = True
-                self.t_cv_back.start()
-                self.t_get_dist_asynch.start()
-                time.sleep(3)
-                call_back()
-            received_frame, received_discrete = self.data_sock_receive.receive_all(1024)
-            # cv2.imshow("Informed Frame", frame)
-            if received_frame is not None:
-                self.computer_vision_back_instance.data_holder.set_frame(received_frame)
+        self.computer_vision_back_instance.run_back(self.data_sock_receive)
 
-            if received_discrete is not None and type(self.computer_vision_back_instance.front_vehicle_center) is list:
-                # Update frames which is received from socket.
-                self.computer_vision_back_instance.data_holder.set_discrete(received_discrete)
-                angles = [-1, self.computer_vision_back_instance.front_vehicle_center[0], -1]
-                self.ser_get_distance.send_query({"ORIENT": angles})
-
-                if self.direct_distance is not None:
-                    abs_dist = math_model(data=received_discrete[0],
-                                          vehicle_length=received_discrete[1],
-                                          direct_distance=self.direct_distance,
-                                          theta=self.computer_vision_back_instance.front_vehicle_center[0])
-
-                    print(f"Front Vehicle Center: {self.computer_vision_back_instance.front_vehicle_center[0]}")
-                    print(f"Absolute Distances: {abs_dist}")
-
-            print(f'Direct Distance: \n{self.direct_distance}')
-
-            time.sleep(0.01)
+            # if received_discrete is not None and type(self.computer_vision_back_instance.front_vehicle_center) is list:
+            #     # Update frames which is received from socket.
+            #     self.computer_vision_back_instance.data_holder.set_discrete(received_discrete)
+            #     angles = [-1, self.computer_vision_back_instance.front_vehicle_center[0], -1]
+            #     self.ser_get_distance.send_query({"ORIENT": angles})
+            #
+            #     if self.direct_distance is not None:
+            #         abs_dist = math_model(data=received_discrete[0],
+            #                               vehicle_length=received_discrete[1],
+            #                               direct_distance=self.direct_distance,
+            #                               theta=self.computer_vision_back_instance.front_vehicle_center[0])
+            #
+            #         print(f"Front Vehicle Center: {self.computer_vision_back_instance.front_vehicle_center[0]}")
+            #         print(f"Absolute Distances: {abs_dist}")
+            #
+            # print(f'Direct Distance: \n{self.direct_distance}')
 
         self.data_sock_receive.s.close()
 
@@ -76,4 +60,4 @@ class BackMode:
             received = self.ser_get_distance.receive_query()
             if received:
                 self.dist_list = received["DISTANCE"]
-            time.sleep(0.3)
+
