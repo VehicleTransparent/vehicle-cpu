@@ -53,8 +53,7 @@ class SerialComm:
             print(f"Restarting Serial: {self.__str__()}")
 
     def receive_query(self):
-        to_return = {"ORIENT": [-1, -1, -1],
-                     "DISTANCE": [-1, -1, -1]}
+        to_return = {"DISTANCE": [-1] * 15}
         if self.connection_state:
             try:
                 while self.ser.in_waiting > 0:
@@ -74,7 +73,7 @@ class SerialComm:
             except Exception:
                 self.connection_state = False
                 self.ser = None
-                to_return = {"ORIENT": [-1, -1, -1], "DISTANCE": [-1, -1, -1]}
+                to_return = {"DISTANCE": [-1] * 15}
         else:
             self.ser = None
             self.__init__(name=self.name, port=self.port, parity=self.parity, stopbits=self.stopbits,
