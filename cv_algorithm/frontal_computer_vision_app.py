@@ -3,6 +3,8 @@ import sys
 import screeninfo
 import torch
 from communication.com_socket import *
+from communication.com_serial import SerialComm
+
 from mathematics.mathlib import map_values_ranges
 
 """
@@ -133,13 +135,16 @@ class ComputerVisionFrontal:
         # Some Initial  Parameters
         # Detection Instances
         self.od = MultiCarsDetection(width=self.width, height=self.height)
+        self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
+        self.angle_map = None
         self.angle_to_send = None
+        self.dist_list = [0] * 3
         self.to_send_fd = to_send_fd
         self.source = source
         self.video = cv2.VideoCapture(self.source)  # CAMERA - RECORDED VIDEO - SIMULATION
         # Read video
 
-    def run_front(self, sock, frames_per_detect=10):
+    def run_front(self, sock, frames_per_detect=10, current_v_length=5):
         frames_counter = 0
         first_frame = True
 
@@ -172,16 +177,19 @@ class ComputerVisionFrontal:
 
             frames_counter += 1
 
-            position_angels = [
+            self.angle_to_send = [
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
-                                  output_range_min=0,
-                                  output_range_max=180) for c in self.cars_sections]
+                                  output_range_min=0, output_range_max=180) for c in self.cars_sections]
 
             # CVFrontGlobalVariables.frame = frame
-            # TODO: self.dist_map = self.ser_get_distance.receive_query() & Angels
-            self.to_send_fd.set_frame(frame)
+            self.angle_map = self.ser_object.receive_query()
 
-            self.angle_to_send = position_angels
+            #TODO:Angels extract from map
+            #self.dist_list
+
+            disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
+            self.to_send_fd.set_frame(frame)
+            self.to_send_fd.get_discrete(disc)
 
             # Showing The Video Frame
             window_name = 'Current Front'
@@ -195,7 +203,6 @@ class ComputerVisionFrontal:
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
                 # sys.exit()
                 break
-
 
         self.video.release()
         cv2.destroyAllWindows()

@@ -1,17 +1,10 @@
-import math
-import sys
-import time
-
-import cv2
-import screeninfo
-import torch
+import math, sys, time, cv2, screeninfo, torch
 import numpy as np
 from communication.com_socket import DataHolder
+from communication.com_serial import SerialComm
 
 
 # Object Detection Class
-
-
 class SingleCardDetection:
     DEF_VAL = 0
     DEF_FLOAT = 0.0
@@ -86,6 +79,7 @@ class SingleCardDetection:
 class ComputerVisionBackApp:
     width_ratio = 0.15
     height_ratio = 0.3
+    CENTER_ANGLE = 7
 
     def __init__(self, source=0):
         self.screen = screeninfo.get_monitors()[0]
@@ -104,10 +98,13 @@ class ComputerVisionBackApp:
         self.last_disc = None
         self.data_holder = DataHolder()
         self.od = SingleCardDetection()
+        self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
         # Read video (emulates Camera)
         self.video = cv2.VideoCapture(self.source)
         self.logo = cv2.imread('..\\gui\\Valeo.png')
         self.front_vehicle_center = self.width // 2
+        self.angle_map = None
+        self.sock = None
         self.data_holder.reset_discrete()
 
     def video_filling_coordinates(self, x1, y1, x2, y2, detected_car_width, detected_car_height):
@@ -123,13 +120,22 @@ class ComputerVisionBackApp:
 
         self.sock = sock
 
+        # TODO: Add extraction angle logic
+        # TODO: Check the center Distance
+        self.angle_map = self.ser_object.receive_query()
+        print(type(self.angle_map))
+
+        if self.angle_map["DISTANCE"][ComputerVisionBackApp.CENTER_ANGLE] >= THRESHOLD:
+            self.sock.s.close()
+            self.sock.connected = False
+
         # Exit if video not opened.
         while not self.video.isOpened():
             print("Could not open video")
             time.sleep(1)
             sys.exit()
 
-        while True:
+        while self.sock.connected:
 
             # read Frame by frame
             ok, cam_captured_frame = self.video.read()
@@ -149,10 +155,10 @@ class ComputerVisionBackApp:
 
             detected_car_width = round(abs(self.x2 - self.x1))
             detected_car_height = round(abs(self.y2 - self.y1))
-            self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = self.video_filling_coordinates(
-                self.x1, self.y1, self.x2, self.y2,
-                detected_car_width,
-                detected_car_height)
+
+            self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = \
+                self.video_filling_coordinates(self.x1, self.y1, self.x2, self.y2,
+                                               detected_car_width, detected_car_height)
             detected_car_width = round(abs(self.x2 - self.x1))
             detected_car_height = round(abs(self.y2 - self.y1))
 
@@ -160,6 +166,7 @@ class ComputerVisionBackApp:
                 try:
                     self.last_streamed_frame = self.data_holder.get_frame()
                     self.last_disc = self.data_holder.get_discrete()
+
                     self.last_streamed_frame = cv2.resize(self.last_streamed_frame,
                                                           (detected_car_width, detected_car_height))
                     # ------------------------------------------------
@@ -187,18 +194,20 @@ class ComputerVisionBackApp:
 
                 except:
                     pass
+
             cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
             self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
             # Showing The Video Frame
             window_name = 'Back View'
             cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
             cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
-                                  cv2.WINDOW_FULLSCREEN)
-            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
+            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+            # Calculate Frames per second (FPS)
+            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
             # Display FPS on frame
-            cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
-                        (50, 255, 255), 2);
+            cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 255, 255), 2)
 
             cv2.imshow(window_name, cam_captured_frame)
 
@@ -218,7 +227,7 @@ class ComputerVisionBackApp:
         # while True:
 
         #   [ [[left_dist, ang], [center_dist, ang], [right_dist, ang]],length ]
-        print(f"\n\n\nself.bm.received_fd.get_discrete(){disc}\n\n\n")
+        print(f"self.bm.received_fd.get_discrete(){disc}")
 
         if disc is not None:
             if disc[0][0][1] > 0:
@@ -235,20 +244,6 @@ class ComputerVisionBackApp:
                 frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
                 print("Don't Pass left is not Secure")
 
-            elif disc[0][0][1] < 0:
-                s_img = cv2.imread("..\\gui\\safe_left.png", -1)
-                y_offset = self.height * 3 // 4
-                x_offset = self.width // 4
-                y1, y2 = y_offset, y_offset + s_img.shape[0]
-                x1, x2 = x_offset - s_img.shape[1], x_offset
-
-                alpha_s = s_img[:, :, 3] / 255.0
-                alpha_l = 1.0 - alpha_s
-                frame[y1:y2, x1:x2, 0] = (alpha_s * s_img[:, :, 0] + alpha_l * frame[y1:y2, x1:x2, 0])
-                frame[y1:y2, x1:x2, 1] = (alpha_s * s_img[:, :, 1] + alpha_l * frame[y1:y2, x1:x2, 1])
-                frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
-                print("Pass left is Secure")
-
             if disc[0][2][1] > 0:
                 s_img = cv2.imread("..\\gui\\unsafe_right.png", -1)
                 y_offset = self.height * 3 // 4
@@ -262,19 +257,5 @@ class ComputerVisionBackApp:
                 frame[y1:y2, x1:x2, 1] = (alpha_s * s_img[:, :, 1] + alpha_l * frame[y1:y2, x1:x2, 1])
                 frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
                 print("Don't Pass right is not Secure")
-
-            elif disc[0][2][1] < 0:
-                s_img = cv2.imread("..\\gui\\safe_right.png", -1)
-                y_offset = self.height * 3 // 4
-                x_offset = self.width * 3 // 4
-                y1, y2 = y_offset, y_offset + s_img.shape[0]
-                x1, x2 = x_offset, x_offset + s_img.shape[1]
-
-                alpha_s = s_img[:, :, 3] / 255.0
-                alpha_l = 1.0 - alpha_s
-                frame[y1:y2, x1:x2, 0] = (alpha_s * s_img[:, :, 0] + alpha_l * frame[y1:y2, x1:x2, 0])
-                frame[y1:y2, x1:x2, 1] = (alpha_s * s_img[:, :, 1] + alpha_l * frame[y1:y2, x1:x2, 1])
-                frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
-                print("Pass right is Secure")
 
         return frame
