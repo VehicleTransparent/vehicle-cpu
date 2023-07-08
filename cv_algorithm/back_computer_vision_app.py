@@ -2,6 +2,7 @@ import math, sys, time, cv2, screeninfo, torch
 import numpy as np
 from communication.com_socket import DataHolder
 from communication.com_serial import SerialComm
+from mathematics.mathlib import map_values_ranges
 
 
 # Object Detection Class
@@ -80,6 +81,11 @@ class ComputerVisionBackApp:
     width_ratio = 0.15
     height_ratio = 0.3
     CENTER_ANGLE = 7
+    IN_MIN = 0
+    IN_MAX = 180
+    OUT_MIN = 0
+    OUT_MAX = 15
+    THRESHOLD = 6
 
     def __init__(self, source=0):
         self.screen = screeninfo.get_monitors()[0]
@@ -119,13 +125,17 @@ class ComputerVisionBackApp:
     def run_back(self, sock):
 
         self.sock = sock
-
-        # TODO: Add extraction angle logic
-        # TODO: Check the center Distance
+        # Extraction angle logic
         self.angle_map = self.ser_object.receive_query()
         print(type(self.angle_map))
+        center_distance = map_values_ranges( ComputerVisionBackApp.CENTER_ANGLE,
+                           ComputerVisionBackApp.IN_MIN,
+                           ComputerVisionBackApp.IN_MAX,
+                           ComputerVisionBackApp.OUT_MIN,
+                           ComputerVisionBackApp.OUT_MAX)
 
-        if self.angle_map["DISTANCE"][ComputerVisionBackApp.CENTER_ANGLE] >= THRESHOLD:
+        # Check the center Distance
+        if center_distance >= ComputerVisionBackApp.THRESHOLD:
             self.sock.s.close()
             self.sock.connected = False
 

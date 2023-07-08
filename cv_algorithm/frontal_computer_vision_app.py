@@ -1,10 +1,6 @@
-import sys
-
-import screeninfo
-import torch
+import sys, screeninfo, torch
 from communication.com_socket import *
-from communication.com_serial import SerialComm
-
+from communication.com_serial import *
 from mathematics.mathlib import map_values_ranges
 
 """
@@ -128,7 +124,10 @@ class MultiCarsDetection:
 
 
 class ComputerVisionFrontal:
-
+    IN_MIN = 0
+    IN_MAX = 180
+    OUT_MIN = 0
+    OUT_MAX = 15
     def __init__(self, source=0, to_send_fd=None):
         self.screen = screeninfo.get_monitors()[0]
         self.width, self.height = self.screen.width, self.screen.height
@@ -184,7 +183,13 @@ class ComputerVisionFrontal:
             # CVFrontGlobalVariables.frame = frame
             self.angle_map = self.ser_object.receive_query()
 
-            #TODO:Angels extract from map
+            # Angels extract from map
+            self.dist_list = [map_values_ranges(self.angle_map[i],
+                                                ComputerVisionFrontal.IN_MIN,
+                                                ComputerVisionFrontal.IN_MAX,
+                                                ComputerVisionFrontal.OUT_MIN,
+                                                ComputerVisionFrontal.OUT_MAX)
+                              for i in range(0, 3)]
             #self.dist_list
 
             disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
