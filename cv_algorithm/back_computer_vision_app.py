@@ -128,9 +128,9 @@ class ComputerVisionBackApp:
             print("Could not open video")
             time.sleep(1)
             sys.exit()
-        print('############# Before Connection Start')
-        while sock.connect_mechanism():
-            print('############# After Connection Start')
+
+        while True:
+
             # read Frame by frame
             ok, cam_captured_frame = self.video.read()
 
@@ -138,7 +138,7 @@ class ComputerVisionBackApp:
             if not ok:
                 print('Cannot read video file')
                 sys.exit()
-            print('############# Video Is Ok')
+
             timer = cv2.getTickCount()  # Start timer To Calculate FPS
             # Resize the Frame
             cam_captured_frame = cv2.resize(cam_captured_frame, (self.width, self.height))
@@ -155,8 +155,7 @@ class ComputerVisionBackApp:
                 detected_car_height)
             detected_car_width = round(abs(self.x2 - self.x1))
             detected_car_height = round(abs(self.y2 - self.y1))
-            print('############# After Detection ')
-            print('############# Area : ', self.area)
+
             if self.area != 0:
                 try:
                     self.last_streamed_frame = self.data_holder.get_frame()

@@ -31,20 +31,21 @@ class BackMode:
 
         # CV model run front in thread
         self.t_cv_back = Thread(target=self.computer_vision_back_instance.run_back,
-                                args=[self.data_sock_receive], daemon=True)
-        self.t_get_dist_asynch = Thread(target=self.distance_fetcher, args=[], daemon=True)
+                                args=[self.data_sock_receive], daemon=False)
+        self.t_get_dist_asynch = Thread(target=self.distance_fetcher, args=[], daemon=False)
 
         self.threads_activated = False
 
     def __call__(self, call_back):
 
-        while self.data_sock_receive.connect_mechanism():
+        while self.data_sock_receive.connected:
             if not self.threads_activated:
                 self.threads_activated = True
                 self.t_cv_back.start()
-                self.t_get_dist_asynch.start()
-                time.sleep(3)
+                # self.t_get_dist_asynch.start()
+
                 call_back()
+
             received_frame, received_discrete = self.data_sock_receive.receive_all(1024)
             # cv2.imshow("Informed Frame", frame)
             if received_frame is not None:
@@ -67,8 +68,6 @@ class BackMode:
 
             print(f'Direct Distance: \n{self.direct_distance}')
 
-            time.sleep(0.01)
-
         self.data_sock_receive.s.close()
 
     def distance_fetcher(self):
@@ -76,4 +75,4 @@ class BackMode:
             received = self.ser_get_distance.receive_query()
             if received:
                 self.dist_list = received["DISTANCE"]
-            time.sleep(0.3)
+

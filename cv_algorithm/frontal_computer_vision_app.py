@@ -127,14 +127,14 @@ class MultiCarsDetection:
 
 class ComputerVisionFrontal:
 
-    def __init__(self, source=0):
+    def __init__(self, source=0, to_send_fd=None):
         self.screen = screeninfo.get_monitors()[0]
         self.width, self.height = self.screen.width, self.screen.height
         # Some Initial  Parameters
         # Detection Instances
         self.od = MultiCarsDetection(width=self.width, height=self.height)
-        self.frame_to_send = None
         self.angle_to_send = None
+        self.to_send_fd = to_send_fd
         self.source = source
         self.video = cv2.VideoCapture(self.source)  # CAMERA - RECORDED VIDEO - SIMULATION
         # Read video
@@ -148,15 +148,15 @@ class ComputerVisionFrontal:
             print("Could not open video")
             self.video = cv2.VideoCapture(self.source)  # CAMERA - RECORDED VIDEO - SIMULATION
             self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
-            time.sleep(1)
+
             # sys.exit()
 
-        while sock.connect_mechanism():
+        while True:
             # Read Frame by frame
             ok, frame = self.video.read()
 
-            while frame is None:
-                cv2.VideoCapture(self.source)
+            # while frame is None:
+            #     cv2.VideoCapture(self.source)
 
             frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
 
@@ -172,27 +172,16 @@ class ComputerVisionFrontal:
 
             frames_counter += 1
 
-            # [ (451, 651) , (0,0) , (451, 651) ]
             position_angels = [
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
                                   output_range_min=0,
                                   output_range_max=180) for c in self.cars_sections]
-            print('position_angels : ', position_angels)
-            print('cars_sections : ', self.cars_sections)
 
             # CVFrontGlobalVariables.frame = frame
-            self.frame_to_send = frame
+            # TODO: self.dist_map = self.ser_get_distance.receive_query() & Angels
+            self.to_send_fd.set_frame(frame)
 
             self.angle_to_send = position_angels
-
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-            print('Detected Left Car center  : ')
-            print(self.cars_sections[0])
-            print('Detected Middle Car center : ')
-            print(self.cars_sections[1])
-            print('Detected Right Car center : ')
-            print(self.cars_sections[2])
-            print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 
             # Showing The Video Frame
             window_name = 'Current Front'
@@ -206,7 +195,7 @@ class ComputerVisionFrontal:
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
                 # sys.exit()
                 break
-            time.sleep(0.01)
+
 
         self.video.release()
         cv2.destroyAllWindows()
