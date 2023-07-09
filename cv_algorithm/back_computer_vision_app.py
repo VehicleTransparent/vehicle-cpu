@@ -1,7 +1,14 @@
-import math, sys, time, cv2, screeninfo, torch
+import math
+import sys
+import time
+
+import cv2
 import numpy as np
-from communication.com_socket import DataHolder
+import screeninfo
+import torch
+
 from communication.com_serial import SerialComm
+from communication.com_socket import DataHolder
 from mathematics.mathlib import map_values_ranges
 
 
@@ -125,14 +132,16 @@ class ComputerVisionBackApp:
     def run_back(self, sock):
 
         self.sock = sock
+        center_distance = None
         # Extraction angle logic
         self.angle_map = self.ser_object.receive_query()
-        print(type(self.angle_map))
-        center_distance = map_values_ranges( ComputerVisionBackApp.CENTER_ANGLE,
-                           ComputerVisionBackApp.IN_MIN,
-                           ComputerVisionBackApp.IN_MAX,
-                           ComputerVisionBackApp.OUT_MIN,
-                           ComputerVisionBackApp.OUT_MAX)
+        if self.angle_map is not None and type(self.angle_map) is dict:
+            # Angels extract from map
+            center_distance = round(map_values_ranges(self.angle_map['DISTANCE'][7],
+                                                      ComputerVisionBackApp.IN_MIN,
+                                                      ComputerVisionBackApp.IN_MAX,
+                                                      ComputerVisionBackApp.OUT_MIN,
+                                                      ComputerVisionBackApp.OUT_MAX))
 
         # Check the center Distance
         if center_distance >= ComputerVisionBackApp.THRESHOLD:

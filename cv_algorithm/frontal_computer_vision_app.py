@@ -1,6 +1,10 @@
-import sys, screeninfo, torch
-from communication.com_socket import *
+import sys
+
+import screeninfo
+import torch
+
 from communication.com_serial import *
+from communication.com_socket import *
 from mathematics.mathlib import map_values_ranges
 
 """
@@ -64,7 +68,7 @@ class MultiCarsDetection:
 
         if not self.detected_vehicles_data_frame.empty:
             self.add_vehicles_areas_to_data_frame()
-        # LEFT CAR BOUNDING BOX
+            # LEFT CAR BOUNDING BOX
             left_section_vehicles = self.detected_vehicles_data_frame[
                 self.detected_vehicles_data_frame[MultiCarsDetection.BOTTOM_RIGHT_X] <= self.end_left_section]
             middle_section_vehicles = self.detected_vehicles_data_frame[
@@ -77,7 +81,7 @@ class MultiCarsDetection:
             left_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
                 frame, left_section_vehicles, (0, 0, 255))
             middle_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
-                frame,  middle_section_vehicles, (0, 255, 0))
+                frame, middle_section_vehicles, (0, 255, 0))
             right_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
                 frame, right_section_vehicles, (255, 0, 0))
 
@@ -127,7 +131,8 @@ class ComputerVisionFrontal:
     IN_MIN = 0
     IN_MAX = 180
     OUT_MIN = 0
-    OUT_MAX = 15
+    OUT_MAX = 14
+
     def __init__(self, source=0, to_send_fd=None):
         self.screen = screeninfo.get_monitors()[0]
         self.width, self.height = self.screen.width, self.screen.height
@@ -145,6 +150,7 @@ class ComputerVisionFrontal:
 
     def run_front(self, sock, frames_per_detect=10, current_v_length=5):
         frames_counter = 0
+        disc = None
         first_frame = True
 
         # Exit if video not opened.
@@ -180,21 +186,19 @@ class ComputerVisionFrontal:
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
                                   output_range_min=0, output_range_max=180) for c in self.cars_sections]
 
-            # CVFrontGlobalVariables.frame = frame
             self.angle_map = self.ser_object.receive_query()
+            if self.angle_map is not None and type(self.angle_map) is dict:
+                # Angels extract from map
+                self.dist_list = [round(map_values_ranges(self.angle_map['DISTANCE'][i],
+                                                          ComputerVisionFrontal.IN_MIN,
+                                                          ComputerVisionFrontal.IN_MAX,
+                                                          ComputerVisionFrontal.OUT_MIN,
+                                                          ComputerVisionFrontal.OUT_MAX))
+                                  for i in range(0, 3)]
 
-            # Angels extract from map
-            self.dist_list = [map_values_ranges(self.angle_map[i],
-                                                ComputerVisionFrontal.IN_MIN,
-                                                ComputerVisionFrontal.IN_MAX,
-                                                ComputerVisionFrontal.OUT_MIN,
-                                                ComputerVisionFrontal.OUT_MAX)
-                              for i in range(0, 3)]
-            #self.dist_list
-
-            disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
+                disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
             self.to_send_fd.set_frame(frame)
-            self.to_send_fd.get_discrete(disc)
+            self.to_send_fd.set_discrete(disc)
 
             # Showing The Video Frame
             window_name = 'Current Front'
