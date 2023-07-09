@@ -119,7 +119,7 @@ class ComputerVisionBackApp:
         y2 = round(y2 - detected_car_height * 0.3)
         return x1, y1, x2, y2, new_detected_car_width, new_detected_car_height
 
-    def run_back(self, sock):
+    def run_back(self, sock, gui):
 
         self.sock = sock
 
@@ -133,6 +133,7 @@ class ComputerVisionBackApp:
 
             # read Frame by frame
             ok, cam_captured_frame = self.video.read()
+            gui.side_video1_holder.set_frame(cam_captured_frame)
 
             # Exit if video not opened.
             if not ok:
@@ -200,7 +201,8 @@ class ComputerVisionBackApp:
             cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
                         (50, 255, 255), 2);
 
-            cv2.imshow(window_name, cam_captured_frame)
+            # cv2.imshow(window_name, cam_captured_frame)
+            gui.main_video_holder.set_frame(cam_captured_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 # sys.exit()
