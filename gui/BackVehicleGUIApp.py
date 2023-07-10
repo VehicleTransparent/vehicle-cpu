@@ -8,6 +8,8 @@ import screeninfo
 from back_app.main_back import BackMode
 from communication.com_socket import DataHolder
 
+DISTANCE_THRESHOLD = 10
+
 
 def get_screen_resolution():
     screen_info = screeninfo.get_monitors()[0]
@@ -24,6 +26,8 @@ class BackVehicleGUIApp:
         self.bm = BackMode(gui=self, ip="127.0.0.1", timeout=4, source="..\\gui\\rear_HQ.mp4")
 
         self.screen_width, self.screen_height = get_screen_resolution()
+
+        self.obstructing_vehicle_distance = 5
 
         self.window_width = 1280
         self.window_height = 720
@@ -68,7 +72,29 @@ class BackVehicleGUIApp:
         self.label_side2 = tk.Label(self.side_frame2, text="Incoming Stream")
         self.label_side2.pack(pady=0)
 
+        self.button_frame = tk.Frame(self.window)
+        self.button_frame.grid(row=2, column=0, padx=40, pady=10)
+
+        self.fullscreen_button = tk.Button(self.button_frame, text="Full Screen", command=self.toggle_fullscreen)
+        self.fullscreen_button.pack(side=tk.LEFT)
+
+        self.connect_button = tk.Button(self.button_frame, text="Connect", command=self.connect,
+                                        state=tk.DISABLED, disabledforeground="gray")
+        self.connect_button.pack(side=tk.LEFT, padx=10)
+
+        self.label_connection = tk.Label(self.button_frame, text="No Connection Available.")
+        self.label_connection.pack(side=tk.LEFT, padx=0)
+
         self.thread_activated = False
+
+    def check_connection(self):
+        # self.obstructing_vehicle_distance = FUNCTION_CALL()
+        if self.obstructing_vehicle_distance <= DISTANCE_THRESHOLD:
+            self.label_connection.config(text="Connection Available!")
+            self.connect_button.config(state=tk.NORMAL, disabledforeground=None)
+        else:
+            self.label_connection.config(text="No Connection Available.")
+            self.connect_button.config(state=tk.DISABLED, disabledforeground="gray")
 
 
     def update_main_frame(self, frame):
@@ -124,7 +150,17 @@ class BackVehicleGUIApp:
             self.side_frame1.grid()
             self.side_frame2.grid()
 
+    def blink_button(self):
+        if self.button['foreground'] == 'green':
+            self.button['foreground'] = '#000000'
+            # self.button['background'] = '#D3D3D3'
+        else:
+            self.button['foreground'] = 'green'
+            # self.button['background'] = '#D3D3D3'
+        self.button.after(500, self.blink_button)  # Blink every 500 milliseconds
+
     def update_frames(self):
+        self.check_connection()
         frame_main = self.main_video_holder.get_frame()
         frame_side1 = self.side_video1_holder.get_frame()
         frame_side2 = self.side_video2_holder.get_frame()
@@ -140,6 +176,7 @@ class BackVehicleGUIApp:
 
         self.window.after(10, self.update_frames)
 
+
     def connect(self):
         while not self.bm.data_sock_receive.connected:
             self.bm.data_sock_receive.connect_mechanism()
@@ -150,18 +187,8 @@ class BackVehicleGUIApp:
 
 
     def run(self):
-        button_frame = tk.Frame(self.window)
-        button_frame.grid(row=2, column=0, padx=40, pady=10)
-
-        fullscreen_button = tk.Button(button_frame, text="Full Screen", command=self.toggle_fullscreen)
-        fullscreen_button.pack(side=tk.LEFT)
-
-        connect_button = tk.Button(button_frame, text="Connect", command=self.connect)
-        connect_button.pack(side=tk.LEFT, padx=10)
-
         self.update_frames()
         self.window.mainloop()
-
 
 
 app = BackVehicleGUIApp(tk.Tk())

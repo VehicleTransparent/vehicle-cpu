@@ -191,11 +191,11 @@ class ComputerVisionBackApp:
             cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
             self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
             # Showing The Video Frame
-            window_name = 'Back View'
-            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-            cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
-                                  cv2.WINDOW_FULLSCREEN)
+            # window_name = 'Back View'
+            # cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+            # cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
+            # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
+            #                       cv2.WINDOW_FULLSCREEN)
             fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
             # Display FPS on frame
             cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
