@@ -5,7 +5,7 @@ import torch
 
 from communication.com_serial import *
 from communication.com_socket import *
-from mathematics.mathlib import map_values_ranges
+from mathematics.services import calculate_rectangle_center, calculate_area, map_values_ranges
 
 """
     1. Naming.
@@ -14,19 +14,7 @@ from mathematics.mathlib import map_values_ranges
 """
 
 
-def calculate_area(top_left_x, top_left_y, bottom_right_x, bottom_right_y):
-    """calculate area based on (top_left_corner) and (bottom_right_corner) coordinates"""
-    width = round(abs(bottom_right_x - top_left_x))
-    height = round(abs(bottom_right_y - top_left_y))
-    return width * height
 
-
-def calculate_rectangle_center(top_left_x, top_left_y, bottom_right_x, bottom_right_y):
-    """Calculate center of a rectangle based on (top_left_corner) and (bottom_right_corner) coordinates"""
-    center_x = round((top_left_x + bottom_right_x) / 2)
-    center_y = round((top_left_y + bottom_right_y) / 2)
-    center = (center_x, center_y)
-    return center
 
 
 class MultiCarsDetection:
@@ -52,8 +40,8 @@ class MultiCarsDetection:
         self.width = width
         self.height = height
 
-        self.end_left_section = round(width / 3)
-        self.end_middle_section = round(width / (3 / 2))
+        self.end_left_section = round(width * (3 / 8))
+        self.end_middle_section = round(width * (6 / 8))
         self.end_right_section = width
 
     def detect(self, frame):
@@ -108,10 +96,10 @@ class MultiCarsDetection:
 
             bottom_right_corner = (round(left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_X]),
                                    round(left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_Y]))
-            # DISPLAY BOUNDING BOX
-            cv2.rectangle(frame, top_left_corner, bottom_right_corner, color=section_color, thickness=2)
-            # DISPLAY CENTER DOT
-            cv2.circle(frame, left_section_car_center, radius=1, color=section_color, thickness=2)
+            # # DISPLAY BOUNDING BOX
+            # cv2.rectangle(frame, top_left_corner, bottom_right_corner, color=section_color, thickness=2)
+            # # DISPLAY CENTER DOT
+            # cv2.circle(frame, left_section_car_center, radius=1, color=section_color, thickness=2)
 
         else:
             left_section_closest_vehicle = 0
@@ -140,7 +128,7 @@ class ComputerVisionFrontal:
         # Detection Instances
         self.od = MultiCarsDetection(width=self.width, height=self.height)
         self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
-        self.angle_map = None
+        self.angle_map = {"DISTANCE": [-1] * 15}
         self.angle_to_send = None
         self.dist_list = [0] * 3
         self.to_send_fd = to_send_fd
@@ -168,13 +156,13 @@ class ComputerVisionFrontal:
             # while frame is None:
             #     cv2.VideoCapture(self.source)
 
-            frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
-
             # Exit if video not opened.
             if not ok:
                 print('Cannot read video file')
                 self.angle_to_send = [-1, -1, -1]
                 sys.exit()
+
+            frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
             if frames_counter >= frames_per_detect or first_frame:
                 self.cars_sections = self.od.detect(frame=frame)
                 frames_counter = 0
@@ -185,8 +173,10 @@ class ComputerVisionFrontal:
             self.angle_to_send = [
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
                                   output_range_min=0, output_range_max=180) for c in self.cars_sections]
-
-            self.angle_map = self.ser_object.receive_query()
+            if self.ser_object:
+                self.angle_map = self.ser_object.receive_query()
+            else:
+                self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
             if self.angle_map is not None and type(self.angle_map) is dict:
                 # Angels extract from map
                 self.dist_list = [round(map_values_ranges(self.angle_map['DISTANCE'][i],

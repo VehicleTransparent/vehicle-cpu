@@ -35,7 +35,7 @@ class Gui:
 
         self.connection_status = Label(font=('vendor', 28, 'bold'), text='Request A Connection', background="#AFD1EE")
         self.connection_status.place(relx=.5, rely=.25, anchor="center")
-        self.bm = BackMode(ip="127.0.0.1", timeout=4, source="..\\gui\\small_rear_cut.mp4")
+        self.bm = BackMode(ip="127.0.0.1", timeout=4, source="..\\gui\\back-view.mp4")
         self.main_window.mainloop()
 
     # call back function to do action for binding on mouse click
