@@ -1,22 +1,6 @@
 from math import sin, cos, sqrt, radians
 
-
-def map_values_ranges(input_value, input_range_min=180, input_range_max=0, output_range_min=2, output_range_max=12):
-    """
-    Name        :   map_values_ranges
-    Description :   Mapping input value from range to another range the relation is linear equation.
-    Return      :   The mapped value after changing range of input to range of output.
-    Arguments   :   - input_value:      value to be modified based on ranges.
-                :    - input_range_min:  value of the minimum of input range.
-                :    - input_range_max:  value of the maximum of input range.
-                :    - output_range_min: value of the minimum of output range.
-                :    - output_range_max: value of the maximum of output range.
-    """
-    return (input_value - input_range_min) * (output_range_max - output_range_min) / (
-                input_range_max - input_range_min) + output_range_min;
-
-
-def math_model(data=[[2, 0], [2, -70], [3, 80]], vehicle_length=4, direct_distance=4, theta=-50):
+def math_model(data=[[2, 0], [2, -70], [3, 140]], vehicle_length=4, direct_distance=4, theta=-50):
     """
         Name        :   math_model
         Description :   A method catch list of angels and distances and return list of direct distances,
@@ -35,7 +19,7 @@ def math_model(data=[[2, 0], [2, -70], [3, 80]], vehicle_length=4, direct_distan
     # data is list of 3 lists
     # each list have [car_distance, car_angle]
 
-    if (None not in data) and (direct_distance > 0) and (60 <= theta <= 120) and (vehicle_length > 0):
+    if (None not in data) and (direct_distance > 0) and (67 <= theta <= 113) and (vehicle_length > 0):
         relatives = [relative_dist[0] for relative_dist in data]
 
         phis = [angle[1] for angle in data]
@@ -90,35 +74,3 @@ def math_model(data=[[2, 0], [2, -70], [3, 80]], vehicle_length=4, direct_distan
     return absolute_distances
 
 
-def frame_to_positions(row_data=[[100, 100, 960, 540], [150, 150, 640, 360], [200, 200, 192, 108]],
-                       frame_size=[1920, 1080], mode="FRONT"):
-    """
-    Name        :   frame_to_positions
-    Description :   A method for calculate the angle of the objects in front of the main vehicle.
-    Return      :   {position_angles} list of 3 elements represents the angle of the corresponding object.
-    Arguments   :   -   {row_data} List of 3 elements each one contains 4 values x1, x2, y1, y2 borders of the object in frame.
-                :   -   {frame_size} frame size.
-
-"""
-    if mode == "FRONT":
-        # row_data is a list of 3 lists
-        # Each list consist of starting_width, starting_height, width, height
-        # Frame_size represents the resolution of camera which is used to capture the frame
-        # For each center ( (x+width/2) , (y+height/2) )
-        centers = [[(row_data[i][0] + (row_data[i][2] / 2)), (row_data[i][1] + (row_data[i][3] / 2))]
-                   for i in range(0, 3)]
-        # For get positions in relation of screen resolution
-        print(f"Centers: {centers}")
-
-    elif mode == "BACK":
-        # For each center ( (x+width/2) , (y+height/2) )
-        center = [[(row_data[0] + (row_data[2] / 2)), (row_data[1] + (row_data[3] / 2))]]
-        # For get positions in relation of screen resolution
-        print(f"Center: {center}")
-
-    position_angels = [
-        map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=frame_size[0], output_range_min=0,
-                          output_range_max=180) for c in center]
-
-    print(f"Angels: {position_angels}")
-    return position_angels

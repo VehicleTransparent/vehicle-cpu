@@ -1,15 +1,18 @@
 import math
+import random
 import sys
 import time
 
 import cv2
+import numpy as np
 import screeninfo
 import torch
-import numpy as np
+
+from communication.com_serial import SerialComm
 from communication.com_socket import DataHolder
-
-
+from mathematics.mathlib import math_model
 # Object Detection Class
+from mathematics.services import map_values_ranges, calculate_rectangle_center
 
 
 class SingleCardDetection:
@@ -18,7 +21,7 @@ class SingleCardDetection:
     DEF_TXT = ''
     CONFIDENCE_THRESHOLD = 0.6
 
-    def __init__(self, conf_threshold=0.2, area_threshold=13000):
+    def __init__(self, conf_threshold=0.2, area_threshold=20000):
         self.screen = screeninfo.get_monitors()[0]
         self.width, self.height = self.screen.width, self.screen.height
         print("Loading Object Detection")
@@ -86,6 +89,12 @@ class SingleCardDetection:
 class ComputerVisionBackApp:
     width_ratio = 0.15
     height_ratio = 0.3
+    CENTER_ANGLE = 7
+    IN_MIN = 0
+    IN_MAX = 180
+    OUT_MIN = 0
+    OUT_MAX = 14
+    THRESHOLD = 6
 
     def __init__(self, source=0):
         self.screen = screeninfo.get_monitors()[0]
@@ -100,19 +109,24 @@ class ComputerVisionBackApp:
         self.x1, self.y1, self.x2, self.y2, self.text, self.conf, self.area, self.bbox, self.fps = 0, 0, 0, 0, '', 0, 0, 0, 0
 
         # TO_DO: Valeo Icon/Logo as a default pic.
-        self.last_streamed_frame = None
+        self.logo = cv2.imread('..\\gui\\Valeo.png')
+        self.last_streamed_frame = self.logo
         self.last_disc = None
         self.data_holder = DataHolder()
         self.od = SingleCardDetection()
+        self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
         # Read video (emulates Camera)
         self.video = cv2.VideoCapture(self.source)
-        self.logo = cv2.imread('..\\gui\\Valeo.png')
+
         self.front_vehicle_center = self.width // 2
+        self.angle_map = {"DISTANCE": [-1] * 15}
+        self.sock = None
         self.data_holder.reset_discrete()
+        self.center_angle_index = 7
 
     def video_filling_coordinates(self, x1, y1, x2, y2, detected_car_width, detected_car_height):
         new_detected_car_width = round(detected_car_width * 0.9)
-        new_detected_car_height = round(detected_car_height * 0.33)
+        new_detected_car_height = round(detected_car_height * 0.7)
         x1 = round(x1 + detected_car_width * 0.05)
         y1 = round(y1 + detected_car_height * 0.3)
         x2 = round(x2 - detected_car_width * 0.05)
@@ -122,6 +136,12 @@ class ComputerVisionBackApp:
     def run_back(self, sock, gui):
 
         self.sock = sock
+        self.center_distance = 3
+
+        # Check the center Distance
+        if self.center_distance > ComputerVisionBackApp.THRESHOLD:
+            self.sock.s.close()
+            self.sock.connected = False
 
         # Exit if video not opened.
         while not self.video.isOpened():
@@ -129,7 +149,7 @@ class ComputerVisionBackApp:
             time.sleep(1)
             sys.exit()
 
-        while True:
+        while self.sock.connected:
 
             # read Frame by frame
             ok, cam_captured_frame = self.video.read()
@@ -147,13 +167,41 @@ class ComputerVisionBackApp:
             roi_center = (self.C_X, (self.C_Y + (self.C_Y // 2)))
             self.x1, self.y1, self.x2, self.y2, self.text, self.conf, self.area = self.od.detect(
                 frame=cam_captured_frame, roi_center=(self.C_X, self.C_Y))
+            (detected_car_center_x, detected_car_center_y) = calculate_rectangle_center(top_left_x=self.x1,
+                                                                                        top_left_y=self.y1,
+                                                                                        bottom_right_x=self.x2,
+                                                                                        bottom_right_y=self.y2)
+            detected_car_center_angle_x = int(
+                round(map_values_ranges(input_value=detected_car_center_x, input_range_min=0,
+                                        input_range_max=self.screen.width,
+                                        output_range_min=0, output_range_max=14)))
+            # if detected_car_center_angle_x > 120 or detected_car_center_angle_x < 60:
+            #     self.sock.s.close()
+            #     self.sock.connected = False
+            #     continue
+            self.angle_map = self.ser_object.receive_query()
 
+            self.center_angle_index = int(
+                round(map_values_ranges(input_value=detected_car_center_angle_x, input_range_min=0,
+                                        input_range_max=180,
+                                        output_range_min=0, output_range_max=14)))
+            # Extraction angle logic
+            if self.angle_map is not None and type(self.angle_map) is dict:
+                # angles extract from map
+                self.center_distance = map_values_ranges(
+                    self.angle_map['DISTANCE'][self.center_angle_index],
+                    ComputerVisionBackApp.IN_MIN,
+                    ComputerVisionBackApp.IN_MAX,
+                    ComputerVisionBackApp.OUT_MIN,
+                    ComputerVisionBackApp.OUT_MAX)
+            elif self.angle_map is None:
+                self.center_angle_index = 7
             detected_car_width = round(abs(self.x2 - self.x1))
             detected_car_height = round(abs(self.y2 - self.y1))
-            self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = self.video_filling_coordinates(
-                self.x1, self.y1, self.x2, self.y2,
-                detected_car_width,
-                detected_car_height)
+
+            self.x1, self.y1, self.x2, self.y2, detected_car_width, detected_car_height = \
+                self.video_filling_coordinates(self.x1, self.y1, self.x2, self.y2,
+                                               detected_car_width, detected_car_height)
             detected_car_width = round(abs(self.x2 - self.x1))
             detected_car_height = round(abs(self.y2 - self.y1))
 
@@ -161,6 +209,14 @@ class ComputerVisionBackApp:
                 try:
                     self.last_streamed_frame = self.data_holder.get_frame()
                     self.last_disc = self.data_holder.get_discrete()
+
+                    # self.last_disc = [
+                    #     [[random.randint(30, 100), random.randint(0, 67)],
+                    #      [random.randint(5, 30), random.randint(68, 112)],
+                    #      [random.randint(10, 15), random.randint(112, 180)]], 5]
+
+                    if self.last_streamed_frame is None:
+                        self.last_streamed_frame = self.logo
                     self.last_streamed_frame = cv2.resize(self.last_streamed_frame,
                                                           (detected_car_width, detected_car_height))
                     # ------------------------------------------------
@@ -186,8 +242,9 @@ class ComputerVisionBackApp:
                         cam_captured_frame[self.y1: self.y2, self.x1: self.x2], 0.2, zoomed_out_image, 0.8, 0)
                     cam_captured_frame = self.update_warning(cam_captured_frame, self.last_disc)
 
-                except:
+                except Exception:
                     pass
+
             cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
             self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
             # Showing The Video Frame
@@ -197,9 +254,10 @@ class ComputerVisionBackApp:
             # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
             #                       cv2.WINDOW_FULLSCREEN)
             fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
+
             # Display FPS on frame
-            cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
-                        (50, 255, 255), 2);
+            cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 255, 255), 2)
 
             # cv2.imshow(window_name, cam_captured_frame)
             gui.main_video_holder.set_frame(cam_captured_frame)
@@ -220,12 +278,20 @@ class ComputerVisionBackApp:
         # while True:
 
         #   [ [[left_dist, ang], [center_dist, ang], [right_dist, ang]],length ]
-        print(f"\n\n\nself.bm.received_fd.get_discrete(){disc}\n\n\n")
+        print(f"self.bm.received_fd.get_discrete(){disc}")
 
         if disc is not None:
+
+            direct_distances = math_model(data=disc[0], vehicle_length=disc[1], direct_distance=4,
+                                          theta=90)
+
+            print(f'direct_distances :{direct_distances}')
             if disc[0][0][1] > 0:
-                s_img = cv2.imread("..\\gui\\unsafe_left.png", -1)
-                y_offset = self.height * 3 // 4
+                print('UnSafe left')
+                s_img = cv2.imread("..\\gui\\caution.png", -1)
+                text = str(round(direct_distances[0], 1))
+                self.update_direct_distance(s_img, text)
+                y_offset = self.height // 6  # * 3 // 4
                 x_offset = self.width // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]
                 x1, x2 = x_offset - s_img.shape[1], x_offset
@@ -237,23 +303,12 @@ class ComputerVisionBackApp:
                 frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
                 print("Don't Pass left is not Secure")
 
-            elif disc[0][0][1] < 0:
-                s_img = cv2.imread("..\\gui\\safe_left.png", -1)
-                y_offset = self.height * 3 // 4
-                x_offset = self.width // 4
-                y1, y2 = y_offset, y_offset + s_img.shape[0]
-                x1, x2 = x_offset - s_img.shape[1], x_offset
-
-                alpha_s = s_img[:, :, 3] / 255.0
-                alpha_l = 1.0 - alpha_s
-                frame[y1:y2, x1:x2, 0] = (alpha_s * s_img[:, :, 0] + alpha_l * frame[y1:y2, x1:x2, 0])
-                frame[y1:y2, x1:x2, 1] = (alpha_s * s_img[:, :, 1] + alpha_l * frame[y1:y2, x1:x2, 1])
-                frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
-                print("Pass left is Secure")
-
             if disc[0][2][1] > 0:
-                s_img = cv2.imread("..\\gui\\unsafe_right.png", -1)
-                y_offset = self.height * 3 // 4
+                print('UnSafe right')
+                s_img = cv2.imread("..\\gui\\caution.png", -1)
+                text = str(round(direct_distances[2], 1))
+                self.update_direct_distance(s_img, text)
+                y_offset = self.height // 6
                 x_offset = self.width * 3 // 4
                 y1, y2 = y_offset, y_offset + s_img.shape[0]
                 x1, x2 = x_offset, x_offset + s_img.shape[1]
@@ -265,18 +320,15 @@ class ComputerVisionBackApp:
                 frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
                 print("Don't Pass right is not Secure")
 
-            elif disc[0][2][1] < 0:
-                s_img = cv2.imread("..\\gui\\safe_right.png", -1)
-                y_offset = self.height * 3 // 4
-                x_offset = self.width * 3 // 4
-                y1, y2 = y_offset, y_offset + s_img.shape[0]
-                x1, x2 = x_offset, x_offset + s_img.shape[1]
-
-                alpha_s = s_img[:, :, 3] / 255.0
-                alpha_l = 1.0 - alpha_s
-                frame[y1:y2, x1:x2, 0] = (alpha_s * s_img[:, :, 0] + alpha_l * frame[y1:y2, x1:x2, 0])
-                frame[y1:y2, x1:x2, 1] = (alpha_s * s_img[:, :, 1] + alpha_l * frame[y1:y2, x1:x2, 1])
-                frame[y1:y2, x1:x2, 2] = (alpha_s * s_img[:, :, 2] + alpha_l * frame[y1:y2, x1:x2, 2])
-                print("Pass right is Secure")
-
         return frame
+
+    def update_direct_distance(self, frame, text):
+        text = text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2
+        font_color = (255, 255, 255)  # White color in BGR format
+        thickness = 3
+        text_size, _ = cv2.getTextSize(text, font, font_scale, thickness)
+        text_x = (frame.shape[1] - text_size[0]) // 2  # Center the text horizontally
+        text_y = (frame.shape[0] + text_size[1]) // 5 * 3  # Center the text vertically
+        cv2.putText(frame, text, (text_x, text_y), font, font_scale, font_color, thickness, cv2.LINE_AA)

@@ -2,8 +2,10 @@ import sys
 
 import screeninfo
 import torch
+
+from communication.com_serial import *
 from communication.com_socket import *
-from mathematics.mathlib import map_values_ranges
+from mathematics.services import calculate_rectangle_center, calculate_area, map_values_ranges
 
 """
     1. Naming.
@@ -12,19 +14,7 @@ from mathematics.mathlib import map_values_ranges
 """
 
 
-def calculate_area(top_left_x, top_left_y, bottom_right_x, bottom_right_y):
-    """calculate area based on (top_left_corner) and (bottom_right_corner) coordinates"""
-    width = round(abs(bottom_right_x - top_left_x))
-    height = round(abs(bottom_right_y - top_left_y))
-    return width * height
 
-
-def calculate_rectangle_center(top_left_x, top_left_y, bottom_right_x, bottom_right_y):
-    """Calculate center of a rectangle based on (top_left_corner) and (bottom_right_corner) coordinates"""
-    center_x = round((top_left_x + bottom_right_x) / 2)
-    center_y = round((top_left_y + bottom_right_y) / 2)
-    center = (center_x, center_y)
-    return center
 
 
 class MultiCarsDetection:
@@ -50,8 +40,8 @@ class MultiCarsDetection:
         self.width = width
         self.height = height
 
-        self.end_left_section = round(width / 3)
-        self.end_middle_section = round(width / (3 / 2))
+        self.end_left_section = round(width * (3 / 8))
+        self.end_middle_section = round(width * (6 / 8))
         self.end_right_section = width
 
     def detect(self, frame):
@@ -66,7 +56,7 @@ class MultiCarsDetection:
 
         if not self.detected_vehicles_data_frame.empty:
             self.add_vehicles_areas_to_data_frame()
-        # LEFT CAR BOUNDING BOX
+            # LEFT CAR BOUNDING BOX
             left_section_vehicles = self.detected_vehicles_data_frame[
                 self.detected_vehicles_data_frame[MultiCarsDetection.BOTTOM_RIGHT_X] <= self.end_left_section]
             middle_section_vehicles = self.detected_vehicles_data_frame[
@@ -79,7 +69,7 @@ class MultiCarsDetection:
             left_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
                 frame, left_section_vehicles, (0, 0, 255))
             middle_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
-                frame,  middle_section_vehicles, (0, 255, 0))
+                frame, middle_section_vehicles, (0, 255, 0))
             right_section_car_center = self.get_and_draw_closest_detected_vehicle_box_and_center(
                 frame, right_section_vehicles, (255, 0, 0))
 
@@ -106,10 +96,10 @@ class MultiCarsDetection:
 
             bottom_right_corner = (round(left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_X]),
                                    round(left_section_closest_vehicle[MultiCarsDetection.BOTTOM_RIGHT_Y]))
-            # DISPLAY BOUNDING BOX
-            cv2.rectangle(frame, top_left_corner, bottom_right_corner, color=section_color, thickness=2)
-            # DISPLAY CENTER DOT
-            cv2.circle(frame, left_section_car_center, radius=1, color=section_color, thickness=2)
+            # # DISPLAY BOUNDING BOX
+            # cv2.rectangle(frame, top_left_corner, bottom_right_corner, color=section_color, thickness=2)
+            # # DISPLAY CENTER DOT
+            # cv2.circle(frame, left_section_car_center, radius=1, color=section_color, thickness=2)
 
         else:
             left_section_closest_vehicle = 0
@@ -126,6 +116,10 @@ class MultiCarsDetection:
 
 
 class ComputerVisionFrontal:
+    IN_MIN = 0
+    IN_MAX = 180
+    OUT_MIN = 0
+    OUT_MAX = 14
 
     def __init__(self, source=0, to_send_fd=None):
         self.screen = screeninfo.get_monitors()[0]
@@ -133,14 +127,20 @@ class ComputerVisionFrontal:
         # Some Initial  Parameters
         # Detection Instances
         self.od = MultiCarsDetection(width=self.width, height=self.height)
+        self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
+        self.angle_map = {"DISTANCE": [-1] * 15}
         self.angle_to_send = None
+        self.dist_list = [0] * 3
         self.to_send_fd = to_send_fd
         self.source = source
         self.video = cv2.VideoCapture(self.source)  # CAMERA - RECORDED VIDEO - SIMULATION
         # Read video
 
-    def run_front(self, sock, gui, frames_per_detect=10):
+
+    def run_front(self, sock, gui, frames_per_detect=10, current_v_length=5):
+
         frames_counter = 0
+        disc = None
         first_frame = True
 
         # Exit if video not opened.
@@ -158,13 +158,13 @@ class ComputerVisionFrontal:
             # while frame is None:
             #     cv2.VideoCapture(self.source)
 
-            frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
-
             # Exit if video not opened.
             if not ok:
                 print('Cannot read video file')
                 self.angle_to_send = [-1, -1, -1]
                 sys.exit()
+
+            frame = cv2.resize(frame, (self.width, self.height))  # Resize the Frame
             if frames_counter >= frames_per_detect or first_frame:
                 self.cars_sections = self.od.detect(frame=frame)
                 frames_counter = 0
@@ -172,17 +172,31 @@ class ComputerVisionFrontal:
 
             frames_counter += 1
 
-            position_angels = [
+            self.angle_to_send = [
                 map_values_ranges(input_value=c[0], input_range_min=0, input_range_max=self.width,
-                                  output_range_min=0,
-                                  output_range_max=180) for c in self.cars_sections]
+                                  output_range_min=0, output_range_max=180) for c in self.cars_sections]
+            if self.ser_object:
+                self.angle_map = self.ser_object.receive_query()
+            else:
+                self.ser_object = SerialComm(port="COM9", name="Receiver", baudrate=115200)
+            if self.angle_map is not None and type(self.angle_map) is dict:
+                # Angels extract from map
+                self.dist_list = [round(map_values_ranges(self.angle_map['DISTANCE'][i],
+                                                          ComputerVisionFrontal.IN_MIN,
+                                                          ComputerVisionFrontal.IN_MAX,
+                                                          ComputerVisionFrontal.OUT_MIN,
+                                                          ComputerVisionFrontal.OUT_MAX))
+                                  for i in range(0, 3)]
 
-            # CVFrontGlobalVariables.frame = frame
-            # TODO: self.dist_map = self.ser_get_distance.receive_query() & Angels
+                disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
             self.to_send_fd.set_frame(frame)
+
+            self.to_send_fd.set_discrete(disc)
+
             gui.main_video_holder.set_frame(frame)
 
             self.angle_to_send = position_angels
+
 
             # Showing The Video Frame
             # window_name = 'Current Front'
@@ -196,7 +210,6 @@ class ComputerVisionFrontal:
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]
                 # sys.exit()
                 break
-
 
         self.video.release()
         cv2.destroyAllWindows()

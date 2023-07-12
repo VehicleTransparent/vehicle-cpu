@@ -73,7 +73,7 @@ class BackMode:
         self.data_sock_receive.s.close()
 
     def distance_fetcher(self):
-        while True:
+        while self.data_sock_receive.connected:
             received = self.ser_get_distance.receive_query()
             if received:
                 self.dist_list = received["DISTANCE"]
