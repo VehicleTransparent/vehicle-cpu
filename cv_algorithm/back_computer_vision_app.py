@@ -133,7 +133,7 @@ class ComputerVisionBackApp:
         y2 = round(y2 - detected_car_height * 0.3)
         return x1, y1, x2, y2, new_detected_car_width, new_detected_car_height
 
-    def run_back(self, sock):
+    def run_back(self, sock, gui):
 
         self.sock = sock
         self.center_distance = 3
@@ -153,6 +153,7 @@ class ComputerVisionBackApp:
 
             # read Frame by frame
             ok, cam_captured_frame = self.video.read()
+            gui.side_video1_holder.set_frame(cam_captured_frame)
 
             # Exit if video not opened.
             if not ok:
@@ -247,18 +248,19 @@ class ComputerVisionBackApp:
             cv2.rectangle(cam_captured_frame, (self.x1, self.y1), (self.x2, self.y2), (0, 255, 255), 1)
             self.x1, self.y1, self.x2, self.y2, self.text, self.area = 0, 0, 0, 0, '', 0
             # Showing The Video Frame
-            window_name = 'Back View'
-            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-            cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            # window_name = 'Back View'
+            # cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+            # cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
+            # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
+            #                       cv2.WINDOW_FULLSCREEN)
+            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);  # Calculate Frames per second (FPS)
 
-            # Calculate Frames per second (FPS)
-            fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
             # Display FPS on frame
             cv2.putText(cam_captured_frame, "FPS : " + str(int(fps)), (23, 70),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 255, 255), 2)
 
-            cv2.imshow(window_name, cam_captured_frame)
+            # cv2.imshow(window_name, cam_captured_frame)
+            gui.main_video_holder.set_frame(cam_captured_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 # sys.exit()

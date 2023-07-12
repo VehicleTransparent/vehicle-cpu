@@ -136,7 +136,9 @@ class ComputerVisionFrontal:
         self.video = cv2.VideoCapture(self.source)  # CAMERA - RECORDED VIDEO - SIMULATION
         # Read video
 
-    def run_front(self, sock, frames_per_detect=10, current_v_length=5):
+
+    def run_front(self, sock, gui, frames_per_detect=10, current_v_length=5):
+
         frames_counter = 0
         disc = None
         first_frame = True
@@ -188,15 +190,21 @@ class ComputerVisionFrontal:
 
                 disc = [[[self.dist_list[i], self.angle_to_send[i]] for i in range(0, 3)], current_v_length]
             self.to_send_fd.set_frame(frame)
+
             self.to_send_fd.set_discrete(disc)
 
+            gui.main_video_holder.set_frame(frame)
+
+            self.angle_to_send = position_angels
+
+
             # Showing The Video Frame
-            window_name = 'Current Front'
-            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-            cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
-            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
-                                  cv2.WINDOW_FULLSCREEN)
-            cv2.imshow(window_name, frame)
+            # window_name = 'Current Front'
+            # cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+            # cv2.moveWindow(window_name, self.screen.x - 1, self.screen.y - 1)
+            # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,
+            #                       cv2.WINDOW_FULLSCREEN)
+            # cv2.imshow(window_name, frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):  # if press q
                 self.angle_to_send = [(-1, 0), (-1, 0), (-1, 0)]

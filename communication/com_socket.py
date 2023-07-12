@@ -67,7 +67,7 @@ class Server:
                     a = pickle.dumps(dict_to_send)
                     message = struct.pack("Q", len(a)) + a
                     self.s.sendall(message)
-                    cv2.imshow('SOCK_Sending This Frame...', dict_to_send["F"])
+                    # cv2.imshow('SOCK_Sending This Frame...', dict_to_send["F"])
                     key = cv2.waitKey(10)
                     if key == 13:
                         self.s.close()
