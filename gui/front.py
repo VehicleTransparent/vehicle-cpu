@@ -3,7 +3,7 @@ from tkinter import *
 from tkinter.ttk import *
 from PIL import Image, ImageTk
 from front_app.main_front import FrontMode
-sys.path.extend(['I:\Proposel\LAST_REPO\vehicle-cpu'])
+# sys.path.extend(['I:\Proposel\LAST_REPO\vehicle-cpu'])
 '''
   gui file to fire front car system 
 '''
@@ -33,15 +33,16 @@ class Gui:
 
         self.connection_status = Label(font=('vendor', 28, 'bold'), text='Idle', background="#AFD1EE")
         self.connection_status.place(relx=.5, rely=.25, anchor="center")
-        self.fm = FrontMode(ip="192.168.1.4", timeout=3, source="..\\gui\\video5.mp4")
+
+        self.fm = FrontMode(ip="127.0.0.1", timeout=3, source="..\\gui\\front_HQ.mp4")
+
         self.main_window.mainloop()
 
     # call back function to do action for binding on mouse click
     def call_back_click_event(self, event):
-        if self.fm.data_sock_send.connect_mechanism():
+        while not self.fm.data_sock_send.connected:
+            self.fm.data_sock_send.connect_mechanism()
             self.fm(self.main_window.destroy)
-            time.sleep(0.5)
-            self.__init__()
 
 
 gui = Gui()

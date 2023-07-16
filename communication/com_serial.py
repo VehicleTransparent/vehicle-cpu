@@ -29,7 +29,6 @@ class SerialComm:
         except Exception:
             self.ser = None
             self.connection_state = False
-            print("Failed Initialization Serial")
 
     def send_query(self, data_query):
         if self.connection_state:
@@ -42,13 +41,10 @@ class SerialComm:
                 print(f">>>Serial Debug Command: {data_query}")
 
             except Exception:
-                print("Communication Breaked & Reading")
-                print("Serial Closed")
                 self.connection_state = False
                 self.ser = None
 
         else:
-            print("Communication Status is False")
             self.ser = None
             self.__init__(name=self.name, port=self.port, parity=self.parity, stopbits=self.stopbits,
                           bytesize=self.bytesize,
@@ -57,8 +53,7 @@ class SerialComm:
             print(f"Restarting Serial: {self.__str__()}")
 
     def receive_query(self):
-        to_return = {"ORIENT": [-1, -1, -1],
-                     "DISTANCE": [-1, -1, -1]}
+        to_return = {"DISTANCE": [-1] * 15}
         if self.connection_state:
             try:
                 while self.ser.in_waiting > 0:
@@ -76,13 +71,10 @@ class SerialComm:
                 to_return = self.received_data
 
             except Exception:
-                print("Communication Breaked & Reading")
-                print("Serial Closed")
                 self.connection_state = False
                 self.ser = None
-                to_return = {"ORIENT": [-1, -1, -1], "DISTANCE": [-1, -1, -1]}
+                to_return = {"DISTANCE": [-1] * 15}
         else:
-            print("Communication Status is False")
             self.ser = None
             self.__init__(name=self.name, port=self.port, parity=self.parity, stopbits=self.stopbits,
                           bytesize=self.bytesize,

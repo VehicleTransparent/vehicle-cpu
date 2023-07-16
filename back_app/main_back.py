@@ -7,7 +7,7 @@ from mathematics.mathlib import *
 
 
 class BackMode:
-    def __init__(self, ip="127.0.0.1", port=20070, timeout=1, source=0, name="Receive Socket"):
+    def __init__(self, gui, ip="127.0.0.1", port=20070, timeout=1, source=0, name="Receive Socket"):
         '''
         - Create CV object.
         - Create one measurement unit.
@@ -16,6 +16,7 @@ class BackMode:
         - read single distance
         - pass all parameters to mathematical model
         '''
+        self.gui = gui
         self.ip, self.port, self.timeout, self.name, self.source = ip, port, timeout, name, source
         self.data_sock_receive = Client(ip=self.ip, port=self.port, timeout=self.timeout, name=self.name)
         self.ser_get_distance = SerialComm(port="COM10", name="Receiver", baudrate=115200)
@@ -31,23 +32,25 @@ class BackMode:
 
         # CV model run front in thread
         self.t_cv_back = Thread(target=self.computer_vision_back_instance.run_back,
-                                args=[self.data_sock_receive], daemon=True)
-        self.t_get_dist_asynch = Thread(target=self.distance_fetcher, args=[], daemon=True)
+                                args=[self.data_sock_receive, self.gui], daemon=False)
+        self.t_get_dist_asynch = Thread(target=self.distance_fetcher, args=[], daemon=False)
 
         self.threads_activated = False
 
-    def __call__(self, call_back):
+    def __call__(self):
 
-        while self.data_sock_receive.connect_mechanism():
+        while self.data_sock_receive.connected:
             if not self.threads_activated:
                 self.threads_activated = True
                 self.t_cv_back.start()
-                self.t_get_dist_asynch.start()
-                time.sleep(3)
-                call_back()
+                # self.t_get_dist_asynch.start()
+
+
+
             received_frame, received_discrete = self.data_sock_receive.receive_all(1024)
             # cv2.imshow("Informed Frame", frame)
             if received_frame is not None:
+                self.gui.side_video2_holder.set_frame(received_frame)
                 self.computer_vision_back_instance.data_holder.set_frame(received_frame)
 
             if received_discrete is not None and type(self.computer_vision_back_instance.front_vehicle_center) is list:
@@ -67,13 +70,11 @@ class BackMode:
 
             print(f'Direct Distance: \n{self.direct_distance}')
 
-            time.sleep(0.01)
-
         self.data_sock_receive.s.close()
 
     def distance_fetcher(self):
-        while True:
+        while self.data_sock_receive.connected:
             received = self.ser_get_distance.receive_query()
             if received:
                 self.dist_list = received["DISTANCE"]
-            time.sleep(0.3)
+
