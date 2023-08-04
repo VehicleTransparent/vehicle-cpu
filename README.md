@@ -1,4 +1,4 @@
-# Making Vehicles Transparent via V2V Vedio Streaming
+# Making Vehicles Transparent via V2V Video Streaming
 Graduation Project 2022-2023 supported by Valeo co. mentorship program
 
 ## Intorduction to Project Idea
